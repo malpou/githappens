@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
         log::set_redaction_token(token);
     }
 
-    let _guard = log::init("info").map_err(|e| anyhow::anyhow!("{e}"))?;
+    let _guard = log::init(&cfg.log_level).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     tracing::info!("githappens starting");
 
@@ -70,6 +70,8 @@ async fn run_app(
         refresh: refresh_interval,
         owner: owner.clone(),
         max_prs,
+        no_color: false,
+        log_level: "info".to_string(),
     };
     let mut app = App::new(&cfg).with_refresh_interval(refresh_interval);
 

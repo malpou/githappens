@@ -155,7 +155,13 @@ impl HttpGitHubFetcher {
             .data
             .ok_or_else(|| FetchError::Parse("missing data field".to_string()))?;
 
-        let prs = data.viewer.pull_requests.nodes;
+        let prs: Vec<PullRequestNode> = data
+            .viewer
+            .pull_requests
+            .nodes
+            .into_iter()
+            .flatten()
+            .collect();
         let has_next = data.viewer.pull_requests.page_info.has_next_page;
         let end_cursor = data.viewer.pull_requests.page_info.end_cursor;
 

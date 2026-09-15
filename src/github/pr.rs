@@ -78,7 +78,7 @@ fn check_from_context(ctx: &CheckContext) -> CheckSnapshot {
         CheckContext::CheckRun(cr) => CheckSnapshot {
             name: cr.name.clone(),
             kind: CheckKind::CheckRun,
-            completed: cr.status == CheckRunStatus::Completed,
+            completed: cr.status == Some(CheckRunStatus::Completed),
             failed: matches!(
                 cr.conclusion,
                 Some(
@@ -89,7 +89,7 @@ fn check_from_context(ctx: &CheckContext) -> CheckSnapshot {
             ),
         },
         CheckContext::StatusContext(sc) => CheckSnapshot {
-            name: sc.name.clone(),
+            name: sc.context.clone(),
             kind: CheckKind::StatusContext,
             completed: matches!(
                 sc.state,

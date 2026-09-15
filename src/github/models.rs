@@ -27,7 +27,7 @@ pub struct Viewer {
 #[serde(rename_all = "camelCase")]
 pub struct PullRequestConnection {
     pub page_info: PageInfo,
-    pub nodes: Vec<PullRequestNode>,
+    pub nodes: Vec<Option<PullRequestNode>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -137,8 +137,9 @@ pub enum CheckRunConclusion {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CheckRun {
+    #[serde(default)]
     pub name: String,
-    pub status: CheckRunStatus,
+    pub status: Option<CheckRunStatus>,
     pub conclusion: Option<CheckRunConclusion>,
 }
 
@@ -154,8 +155,11 @@ pub enum StatusState {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StatusContext {
-    pub name: String,
+    #[serde(default)]
+    pub context: String,
     pub state: StatusState,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -244,7 +248,7 @@ mod tests {
         let resp: GraphQLResponse = serde_json::from_value(json).unwrap();
         let viewer = resp.data.unwrap().viewer;
         assert_eq!(viewer.login, "ska");
-        let pr = &viewer.pull_requests.nodes[0];
+        let pr = viewer.pull_requests.nodes[0].as_ref().unwrap();
         assert_eq!(pr.number, 42);
         assert_eq!(pr.mergeable, MergeableState::Mergeable);
         assert!(!pr.is_draft);
@@ -280,7 +284,8 @@ mod tests {
             }
         });
         let resp: GraphQLResponse = serde_json::from_value(json).unwrap();
-        let pr = &resp.data.unwrap().viewer.pull_requests.nodes[0];
+        let data = resp.data.unwrap();
+        let pr = data.viewer.pull_requests.nodes[0].as_ref().unwrap();
         assert!(pr.commits.nodes[0].commit.status_check_rollup.is_none());
     }
 

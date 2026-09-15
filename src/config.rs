@@ -30,6 +30,12 @@ pub struct Config {
 
     #[arg(long, default_value_t = 500)]
     pub max_prs: usize,
+
+    #[arg(long, default_value_t = false, env = "NO_COLOR")]
+    pub no_color: bool,
+
+    #[arg(long, default_value = "info", env = "RUST_LOG")]
+    pub log_level: String,
 }
 
 pub fn validate(cfg: &Config) -> Result<(), ConfigError> {
@@ -77,6 +83,8 @@ mod tests {
             refresh: 300,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::MissingToken));
@@ -90,6 +98,8 @@ mod tests {
             refresh: 300,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::MissingToken));
@@ -102,6 +112,8 @@ mod tests {
             refresh: 10,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::RefreshTooLow(10)));
@@ -114,6 +126,8 @@ mod tests {
             refresh: 0,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::RefreshTooLow(0)));
@@ -126,6 +140,8 @@ mod tests {
             refresh: 30,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         assert!(validate(&cfg).is_ok());
     }
@@ -137,6 +153,8 @@ mod tests {
             refresh: 300,
             owner: None,
             max_prs: 0,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::MaxPrsOutOfRange(0)));
@@ -149,6 +167,8 @@ mod tests {
             refresh: 300,
             owner: None,
             max_prs: 1001,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(matches!(err, ConfigError::MaxPrsOutOfRange(1001)));
@@ -175,6 +195,8 @@ mod tests {
             refresh: 10,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         };
         let err = validate(&cfg).unwrap_err();
         assert!(!err.to_string().contains("ghp_super_secret"));

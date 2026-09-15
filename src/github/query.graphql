@@ -21,16 +21,19 @@ query OpenPRs($first: Int!, $after: String) {
             commit {
               statusCheckRollup {
                 state
-                contexts {
-                  __typename
-                  ... on CheckRun {
-                    name
-                    status
-                    conclusion
-                  }
-                  ... on StatusContext {
-                    name
-                    state
+                contexts(first: 100) {
+                  nodes {
+                    __typename
+                    ... on CheckRun {
+                      name
+                      status
+                      conclusion
+                    }
+                    ... on StatusContext {
+                      context
+                      state
+                      description
+                    }
                   }
                 }
               }

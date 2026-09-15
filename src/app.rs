@@ -244,6 +244,8 @@ mod tests {
             refresh: 300,
             owner: None,
             max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
         }
     }
 
