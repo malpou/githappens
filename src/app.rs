@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::analysis::mergeability::{MergeReadiness, assess};
 use crate::config::Config;
-use crate::github::client::{FetchError, FetchOutcome, GitHubFetcher};
+use crate::github::client::{FetchError, FetchOutcome};
 use crate::github::pr::PullRequestSnapshot;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,14 +158,8 @@ impl App {
         self.prs.get(self.selected)
     }
 
-    pub async fn refresh<F: GitHubFetcher>(
-        &mut self,
-        fetcher: &F,
-        owner: Option<&str>,
-        max: usize,
-    ) {
-        self.state = AppState::Refreshing;
-        match fetcher.fetch_open_prs(owner, max).await {
+    pub fn apply_fetch_result(&mut self, result: Result<FetchOutcome, FetchError>) {
+        match result {
             Ok(outcome) => {
                 self.apply_outcome(outcome);
             }
@@ -250,7 +244,7 @@ impl App {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::github::client::MockGitHubFetcher;
+    use crate::github::client::{GitHubFetcher, MockGitHubFetcher};
 
     fn make_config() -> Config {
         Config {
@@ -274,7 +268,8 @@ mod tests {
                 truncated: false,
             }),
         };
-        app.refresh(&fetcher, None, 500).await;
+        let result = fetcher.fetch_open_prs(None, 500).await;
+        app.apply_fetch_result(result);
         assert_eq!(app.state, AppState::Ready);
         assert_eq!(app.viewer_login, "ska");
     }
@@ -286,7 +281,8 @@ mod tests {
         let fetcher = MockGitHubFetcher {
             outcome: Err(FetchError::TokenInvalid),
         };
-        app.refresh(&fetcher, None, 500).await;
+        let result = fetcher.fetch_open_prs(None, 500).await;
+        app.apply_fetch_result(result);
         match &app.state {
             AppState::Error(msg) => assert!(msg.contains("Token invalid")),
             _ => panic!("expected Error state"),
@@ -302,7 +298,8 @@ mod tests {
                 retry_after_secs: 120,
             }),
         };
-        app.refresh(&fetcher, None, 500).await;
+        let result = fetcher.fetch_open_prs(None, 500).await;
+        app.apply_fetch_result(result);
         match &app.state {
             AppState::RateLimited { retry_after_secs } => {
                 assert_eq!(*retry_after_secs, 120);

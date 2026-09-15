@@ -28,6 +28,12 @@ pub fn render(frame: &mut ratatui::Frame, app: &mut App) {
             let msg = format!("Rate limited by GitHub. Retry in {countdown}");
             crate::ui::error_screen::render(frame, area, &msg);
         }
+        crate::app::AppState::Loading | crate::app::AppState::Refreshing if app.prs.is_empty() => {
+            let spinner = app.spinner();
+            let msg = format!(" {spinner}  Fetching your PRs... ");
+            let paragraph = Paragraph::new(msg).centered();
+            frame.render_widget(paragraph, area);
+        }
         _ => {
             render_dashboard(frame, area, app);
         }

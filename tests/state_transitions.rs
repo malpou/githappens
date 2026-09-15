@@ -192,7 +192,8 @@ async fn refresh_transitions_ready_to_refreshing_to_ready() {
         prs: vec![make_pr(1, "Test")],
         truncated: false,
     })]);
-    app.refresh(&fetcher, None, 500).await;
+    let result = fetcher.fetch_open_prs(None, 500).await;
+    app.apply_fetch_result(result);
     assert_eq!(app.state, AppState::Ready);
     assert_eq!(app.prs.len(), 1);
 }
@@ -211,9 +212,11 @@ async fn refresh_after_rate_limit_returns_to_ready() {
             truncated: false,
         }),
     ]);
-    app.refresh(&fetcher, None, 500).await;
+    let result = fetcher.fetch_open_prs(None, 500).await;
+    app.apply_fetch_result(result);
     assert!(app.is_rate_limited());
-    app.refresh(&fetcher, None, 500).await;
+    let result = fetcher.fetch_open_prs(None, 500).await;
+    app.apply_fetch_result(result);
     assert_eq!(app.state, AppState::Ready);
     assert_eq!(app.prs.len(), 1);
 }
@@ -227,7 +230,8 @@ async fn empty_state_renders() {
         prs: vec![],
         truncated: false,
     })]);
-    app.refresh(&fetcher, None, 500).await;
+    let result = fetcher.fetch_open_prs(None, 500).await;
+    app.apply_fetch_result(result);
     assert_eq!(app.state, AppState::Ready);
     assert!(app.prs.is_empty());
 }
@@ -246,7 +250,8 @@ async fn token_not_in_error_message() {
     let cfg = make_config();
     let mut app = App::new(&cfg);
     let fetcher = ScriptedFetcher::new(vec![Err(FetchError::TokenInvalid)]);
-    app.refresh(&fetcher, None, 500).await;
+    let result = fetcher.fetch_open_prs(None, 500).await;
+    app.apply_fetch_result(result);
     match &app.state {
         AppState::Error(msg) => {
             assert!(!msg.contains("ghp_test"));

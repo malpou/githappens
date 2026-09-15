@@ -1,4 +1,5 @@
 use std::io::{self, stdout};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -8,7 +9,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use githappens::app::{App, AppState, KeyAction};
 use githappens::config;
-use githappens::github::client::HttpGitHubFetcher;
+use githappens::github::client::{FetchError, FetchOutcome, GitHubFetcher, HttpGitHubFetcher};
 use githappens::log;
 use githappens::ui;
 use ratatui::Terminal;
@@ -28,7 +29,7 @@ async fn main() -> Result<()> {
     tracing::info!("githappens starting");
 
     let token = cfg.token.clone().unwrap_or_default();
-    let fetcher = HttpGitHubFetcher::new(token);
+    let fetcher = Arc::new(HttpGitHubFetcher::new(token));
     let refresh_interval = cfg.refresh;
     let max_prs = cfg.max_prs;
     let owner = cfg.owner.clone();
@@ -37,7 +38,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_tui(
-    fetcher: HttpGitHubFetcher,
+    fetcher: Arc<HttpGitHubFetcher>,
     refresh_interval: u64,
     max_prs: usize,
     owner: Option<String>,
@@ -60,7 +61,7 @@ fn restore_terminal() {
 }
 
 async fn run_app(
-    fetcher: HttpGitHubFetcher,
+    fetcher: Arc<HttpGitHubFetcher>,
     refresh_interval: u64,
     max_prs: usize,
     owner: Option<String>,
@@ -78,7 +79,10 @@ async fn run_app(
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    app.refresh(&fetcher, owner.as_deref(), max_prs).await;
+    let (result_tx, mut result_rx) =
+        tokio::sync::mpsc::unbounded_channel::<Result<FetchOutcome, FetchError>>();
+
+    spawn_refresh(&fetcher, &owner, max_prs, &result_tx);
 
     let tick_interval = Duration::from_millis(250);
 
@@ -97,12 +101,13 @@ async fn run_app(
                         KeyAction::Quit => break,
                         KeyAction::Refresh => {
                             if app.can_refresh() {
-                                app.refresh(&fetcher, owner.as_deref(), max_prs).await;
+                                app.state = AppState::Refreshing;
+                                spawn_refresh(&fetcher, &owner, max_prs, &result_tx);
                             }
                         }
                         KeyAction::ForceRefresh => {
                             app.state = AppState::Refreshing;
-                            app.refresh(&fetcher, owner.as_deref(), max_prs).await;
+                            spawn_refresh(&fetcher, &owner, max_prs, &result_tx);
                         }
                         KeyAction::OpenUrl(url) => {
                             let _ = githappens::browser::open(&url);
@@ -112,13 +117,33 @@ async fn run_app(
                 }
                 githappens::event::Event::Tick => {
                     if app.should_auto_refresh() && app.can_refresh() {
-                        app.refresh(&fetcher, owner.as_deref(), max_prs).await;
+                        app.state = AppState::Refreshing;
+                        spawn_refresh(&fetcher, &owner, max_prs, &result_tx);
                     }
                 }
             }
+        }
+
+        while let Ok(result) = result_rx.try_recv() {
+            app.apply_fetch_result(result);
         }
     }
 
     restore_terminal();
     Ok(())
+}
+
+fn spawn_refresh(
+    fetcher: &Arc<HttpGitHubFetcher>,
+    owner: &Option<String>,
+    max_prs: usize,
+    result_tx: &tokio::sync::mpsc::UnboundedSender<Result<FetchOutcome, FetchError>>,
+) {
+    let fetcher = Arc::clone(fetcher);
+    let owner = owner.clone();
+    let tx = result_tx.clone();
+    tokio::spawn(async move {
+        let result = fetcher.fetch_open_prs(owner.as_deref(), max_prs).await;
+        let _ = tx.send(result);
+    });
 }
