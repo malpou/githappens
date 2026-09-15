@@ -2,17 +2,20 @@
 
 > Git happens. Now you can see it.
 
-A personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, workflow status, and approval state.
+A personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, workflow status, approval state, and up-to-date tracking.
 
 ## Features
 
 - Lists all your open PRs across all repos in a single dashboard
 - Color-coded merge-readiness: green (ready), yellow (waiting), red (failed)
-- Workflow pass/total counts per PR
-- Approval state indicators
+- Workflow pass/total counts per PR (e.g. `5/7`)
+- Approval state indicators (approved, changes requested, pending, none)
+- Up-to-date column showing whether the PR branch is current with its base
+- Animated braille spinner during refresh (non-blocking event loop)
 - Press Enter to open a PR in your default browser
 - Auto-refresh with configurable interval
 - Rate-limit aware with countdown
+- Loading state with spinner on first launch
 - Token never logged, printed, or leaked
 
 ## Install
@@ -96,16 +99,52 @@ their CI/check status, and review state. It only requires **read-only** access.
 > **Security:** The token is never logged, printed in error messages, or
 > included in panic payloads. A redaction layer scrubs it from all log output.
 
-## Merge-readiness indicators
+## Dashboard columns
+
+### Merge-readiness indicator
+
+The leftmost column shows a glyph representing the worst signal across all
+dimensions (checks, approval, mergeable state, up-to-date, draft).
 
 | Glyph | Color | State | Meaning |
 |-------|-------|-------|---------|
-| `●` | green | Ready | Mergeable, checks pass, approved, not draft |
-| `◐` | yellow | Waiting | Pending checks, no approval, or mergeable unknown |
-| `●` | red | Failed | Failed checks, changes requested, or conflicting |
+| `●` | green | Ready | Mergeable, checks pass, approved, up-to-date, not draft |
+| `◐` | yellow | Waiting | Pending checks, no approval, or draft |
+| `●` | red | Failed | Failed checks, changes requested, conflicting, out-of-date, or mergeable unknown |
 
-Draft PRs are always yellow regardless of checks/approval. Repos without CI
-are treated as having successful checks.
+Edge cases:
+- **Draft PRs** — always yellow (never ready), regardless of checks/approval
+- **`mergeable == UNKNOWN`** — red (GitHub hasn't computed mergeability)
+- **No CI** — treated as passing (repos without workflows count as success)
+- **Out-of-date** — branch is behind base; treated as failed
+
+### Checks
+
+Shows `completed / total` (e.g. `5/7`). Displays `–/–` (en-dash) when no check
+runs or status contexts exist for the commit. Capped at `99+` when counts
+exceed 99.
+
+### Approval
+
+| Glyph | Color | State | Meaning |
+|-------|-------|-------|---------|
+| `●` | green | Approved | At least one approval, no changes requested |
+| `●` | red | Changes requested | At least one reviewer requested changes |
+| `◔` | yellow | Pending | Reviews submitted but still pending |
+| `○` | gray | None | No reviews, or only commented/dismissed |
+
+Approval is computed by collapsing to the latest review per author (last wins).
+`DISMISSED` reviews are dropped before collapse.
+
+### Up-to-date
+
+| Glyph | Color | State | Meaning |
+|-------|-------|-------|---------|
+| `●` | green | Up to date | Branch is current with base (`clean`, `unstable`, `has_hooks`) |
+| `●` | red | Out of date | Branch is behind, dirty, or blocked |
+| `○` | gray | Unknown | Could not fetch state (API error or rate limited) |
+
+Fetched via the GitHub REST API `mergeable_state` field per PR.
 
 ## Development
 
