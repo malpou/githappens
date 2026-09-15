@@ -201,6 +201,35 @@ impl App {
     pub fn is_rate_limited(&self) -> bool {
         matches!(self.state, AppState::RateLimited { .. })
     }
+
+    pub fn rate_limit_retry_secs(&self) -> Option<u64> {
+        match &self.state {
+            AppState::RateLimited { retry_after_secs } => Some(*retry_after_secs),
+            _ => None,
+        }
+    }
+
+    pub fn can_refresh(&self) -> bool {
+        !matches!(self.state, AppState::Refreshing)
+    }
+
+    pub fn rate_limit_countdown(&self) -> Option<String> {
+        match &self.state {
+            AppState::RateLimited { retry_after_secs } => {
+                let elapsed = self
+                    .last_refresh
+                    .map(|t| t.elapsed().as_secs())
+                    .unwrap_or(0);
+                let remaining = retry_after_secs.saturating_sub(elapsed);
+                if remaining >= 60 {
+                    Some(format!("{}m", remaining / 60))
+                } else {
+                    Some(format!("{}s", remaining))
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]

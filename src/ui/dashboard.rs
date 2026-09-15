@@ -22,10 +22,10 @@ pub fn render(frame: &mut ratatui::Frame, app: &App) {
             crate::ui::error_screen::render(frame, area, msg);
         }
         crate::app::AppState::RateLimited { retry_after_secs } => {
-            let msg = format!(
-                "Rate limited by GitHub. Retry in {}m",
-                retry_after_secs / 60
-            );
+            let countdown = app
+                .rate_limit_countdown()
+                .unwrap_or_else(|| format!("{}s", retry_after_secs));
+            let msg = format!("Rate limited by GitHub. Retry in {countdown}");
             crate::ui::error_screen::render(frame, area, &msg);
         }
         _ => {
