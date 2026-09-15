@@ -221,15 +221,7 @@ fn render_footer(frame: &mut ratatui::Frame, area: Rect, app: &App) {
         .filter(|p| assess(p) == MergeReadiness::Failed)
         .count();
 
-    let rate_limited = match &app.state {
-        crate::app::AppState::RateLimited { .. } => 1,
-        _ => 0,
-    };
-
-    let footer = format!(
-        " {} open PRs · {} ready · {} failed · {} rate-limited ",
-        total, ready, failed, rate_limited
-    );
+    let footer = format!(" {total} open PRs · {ready} ready · {failed} failed ");
 
     let paragraph = Paragraph::new(footer).style(
         Style::default()
