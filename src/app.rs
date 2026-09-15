@@ -15,6 +15,15 @@ pub enum AppState {
     Help,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum KeyAction {
+    Quit,
+    Refresh,
+    ForceRefresh,
+    OpenUrl(String),
+    None,
+}
+
 pub struct App {
     pub state: AppState,
     pub prs: Vec<PullRequestSnapshot>,
@@ -84,6 +93,51 @@ impl App {
 
     pub fn toggle_help(&mut self) {
         self.help_visible = !self.help_visible;
+    }
+
+    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> KeyAction {
+        use crossterm::event::KeyCode;
+
+        if self.help_visible {
+            if key.code == KeyCode::Char('?') {
+                self.toggle_help();
+            }
+            return KeyAction::None;
+        }
+
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => KeyAction::Quit,
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.select_down();
+                KeyAction::None
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.select_up();
+                KeyAction::None
+            }
+            KeyCode::Char('g') => {
+                self.select_top();
+                KeyAction::None
+            }
+            KeyCode::Char('G') => {
+                self.select_bottom();
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                if let Some(pr) = self.selected_pr() {
+                    KeyAction::OpenUrl(pr.url.clone())
+                } else {
+                    KeyAction::None
+                }
+            }
+            KeyCode::Char('r') => KeyAction::Refresh,
+            KeyCode::Char('R') => KeyAction::ForceRefresh,
+            KeyCode::Char('?') => {
+                self.toggle_help();
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        }
     }
 
     pub fn selected_pr(&self) -> Option<&PullRequestSnapshot> {
