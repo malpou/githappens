@@ -86,7 +86,7 @@ impl HttpGitHubFetcher {
         &self,
         first: usize,
         after: Option<&str>,
-    ) -> Result<(Vec<PullRequestNode>, bool, Option<String>), FetchError> {
+    ) -> Result<(String, Vec<PullRequestNode>, bool, Option<String>), FetchError> {
         let variables = json!({
             "first": first,
             "after": after,
@@ -155,6 +155,7 @@ impl HttpGitHubFetcher {
             .data
             .ok_or_else(|| FetchError::Parse("missing data field".to_string()))?;
 
+        let login = data.viewer.login;
         let prs: Vec<PullRequestNode> = data
             .viewer
             .pull_requests
@@ -165,7 +166,7 @@ impl HttpGitHubFetcher {
         let has_next = data.viewer.pull_requests.page_info.has_next_page;
         let end_cursor = data.viewer.pull_requests.page_info.end_cursor;
 
-        Ok((prs, has_next, end_cursor))
+        Ok((login, prs, has_next, end_cursor))
     }
 }
 
@@ -178,6 +179,7 @@ impl GitHubFetcher for HttpGitHubFetcher {
     ) -> Result<FetchOutcome, FetchError> {
         let hard_cap = max.min(1000);
         let mut all_prs: Vec<PullRequestNode> = Vec::new();
+        let mut login = String::new();
         let mut after: Option<String> = None;
         let page_size = 100usize;
         let mut truncated = false;
@@ -189,7 +191,7 @@ impl GitHubFetcher for HttpGitHubFetcher {
             }
 
             let fetch_size = page_size.min(remaining);
-            let (nodes, has_next, end_cursor) =
+            let (page_login, nodes, has_next, end_cursor) =
                 match self.fetch_page(fetch_size, after.as_deref()).await {
                     Ok(result) => result,
                     Err(FetchError::GitHubUnavailable) => {
@@ -198,6 +200,7 @@ impl GitHubFetcher for HttpGitHubFetcher {
                     }
                     Err(e) => return Err(e),
                 };
+            login = page_login;
 
             for node in nodes {
                 if !all_prs.iter().any(|p| p.number == node.number) {
@@ -223,8 +226,6 @@ impl GitHubFetcher for HttpGitHubFetcher {
         if all_prs.len() >= 1000 && max >= 1000 {
             truncated = true;
         }
-
-        let login = "viewer".to_string();
 
         let prs: Vec<PullRequestSnapshot> = all_prs.iter().map(pr::from_dto).collect();
 
