@@ -30,7 +30,13 @@ jobs:
         id: version
         run: |
           python3 - <<'PY'
-          import subprocess, sys, re
+          import subprocess, sys, re, os
+
+          gh_output = os.environ.get("GITHUB_OUTPUT", "/dev/null")
+
+          def set_output(name, value):
+              with open(gh_output, "a") as f:
+                  f.write(f"{name}={value}\n")
 
           # Get latest tag (if any)
           result = subprocess.run(
@@ -51,13 +57,13 @@ jobs:
               commits = log.strip().splitlines() if log.strip() else []
           else:
               # No tags yet — first release
-              print("version=0.1.0")
-              print("tag=v0.1.0")
-              print("should_release=true")
+              set_output("version", "0.1.0")
+              set_output("tag", "v0.1.0")
+              set_output("should_release", "true")
               sys.exit(0)
 
           if not commits:
-              print("should_release=false")
+              set_output("should_release", "false")
               sys.exit(0)
 
           # Parse current version from tag (strip leading 'v')
@@ -98,14 +104,14 @@ jobs:
           elif bump_patch:
               patch += 1
           else:
-              print("should_release=false")
+              set_output("should_release", "false")
               sys.exit(0)
 
           version = f"{major}.{minor}.{patch}"
           tag = f"v{version}"
-          print(f"version={version}")
-          print(f"tag={tag}")
-          print("should_release=true")
+          set_output("version", version)
+          set_output("tag", tag)
+          set_output("should_release", "true")
           PY
 
   build:
@@ -167,6 +173,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
