@@ -58,3 +58,34 @@ fn centered(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
     ])
     .split(popup[1])[1]
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn render_help_overlay() {
+        let backend = TestBackend::new(80, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, f.area())).unwrap();
+        let buffer = terminal.backend().buffer();
+        let text = buffer
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<String>();
+        assert!(text.contains("Keybindings"));
+        assert!(text.contains("Press ? to close"));
+    }
+
+    #[test]
+    fn centered_returns_valid_rect() {
+        let area = Rect::new(0, 0, 100, 100);
+        let result = centered(area, 50, 70);
+        assert!(result.width > 0);
+        assert!(result.height > 0);
+    }
+}

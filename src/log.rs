@@ -117,6 +117,29 @@ mod tests {
     }
 
     #[test]
+    fn redacting_writer_flush() {
+        let cursor = Cursor::new(Vec::new());
+        let mut writer = RedactingWriter { inner: cursor };
+        writer.flush().unwrap();
+    }
+
+    #[test]
+    fn redact_empty_token_noop() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        set_redaction_token("");
+        let result = redact("ghp_secret123");
+        assert_eq!(result, "ghp_secret123");
+    }
+
+    #[test]
+    fn redact_token_not_present() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        set_redaction_token("ghp_not_here");
+        let result = redact("nothing to replace");
+        assert_eq!(result, "nothing to replace");
+    }
+
+    #[test]
     fn token_not_in_log_output_regression() {
         let _lock = TEST_LOCK.lock().unwrap();
         let test_token = "ghp_regression_998877";

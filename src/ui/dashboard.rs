@@ -249,7 +249,12 @@ pub fn get_approval(pr: &crate::github::pr::PullRequestSnapshot) -> ApprovalStat
 mod tests {
     use super::*;
     use crate::analysis::workflows::WorkflowCounts;
+    use crate::config::Config;
+    use crate::github::models::{MergeableState, ReviewState};
+    use crate::github::pr::{PullRequestSnapshot, ReviewSnapshot, UpToDateState};
     use chrono::{Duration, Utc};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn format_age_seconds() {
@@ -340,5 +345,209 @@ mod tests {
             total: 100,
         };
         assert_eq!(render_counts_string(&counts), "99+/99+");
+    }
+
+    fn make_app_with_prs() -> App {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.state = crate::app::AppState::Ready;
+        app.viewer_login = "ska".to_string();
+        app.prs = vec![
+            PullRequestSnapshot {
+                number: 42,
+                title: "Add feature".to_string(),
+                url: "https://github.com/o/r/pull/42".to_string(),
+                is_draft: false,
+                mergeable: MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                additions: 10,
+                deletions: 3,
+                created_at: (Utc::now() - Duration::days(5)).to_rfc3339(),
+                rollup_state: Some(crate::github::models::RollupState::Success),
+                checks: vec![crate::github::pr::CheckSnapshot {
+                    name: "CI".to_string(),
+                    kind: crate::github::pr::CheckKind::CheckRun,
+                    completed: true,
+                    failed: false,
+                }],
+                reviews: vec![ReviewSnapshot {
+                    author: "alice".to_string(),
+                    state: ReviewState::Approved,
+                }],
+                up_to_date: UpToDateState::UpToDate,
+            },
+            PullRequestSnapshot {
+                number: 99,
+                title: "Draft PR".to_string(),
+                url: "https://github.com/o/r/pull/99".to_string(),
+                is_draft: true,
+                mergeable: MergeableState::Conflicting,
+                repo: "o/r".to_string(),
+                additions: 0,
+                deletions: 5,
+                created_at: (Utc::now() - Duration::hours(2)).to_rfc3339(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: UpToDateState::OutOfDate,
+            },
+        ];
+        app
+    }
+
+    fn extract_text(terminal: &Terminal<TestBackend>) -> String {
+        terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect()
+    }
+
+    #[test]
+    fn render_dashboard_with_prs() {
+        let mut app = make_app_with_prs();
+        let backend = TestBackend::new(120, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Add feature"));
+        assert!(text.contains("[Draft] Draft PR"));
+        assert!(text.contains("42"));
+        assert!(text.contains("99"));
+        assert!(text.contains("open PRs"));
+        assert!(text.contains("ready"));
+        assert!(text.contains("failed"));
+    }
+
+    #[test]
+    fn render_dashboard_empty_state() {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.state = crate::app::AppState::Ready;
+        app.viewer_login = "ska".to_string();
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("no open PRs"));
+    }
+
+    #[test]
+    fn render_dashboard_loading_state() {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.state = crate::app::AppState::Loading;
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Fetching"));
+    }
+
+    #[test]
+    fn render_dashboard_error_state() {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.state = crate::app::AppState::Error("Something broke".to_string());
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Something broke"));
+        assert!(text.contains("Press r to retry"));
+    }
+
+    #[test]
+    fn render_dashboard_rate_limited_state() {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.state = crate::app::AppState::RateLimited {
+            retry_after_secs: 60,
+        };
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Rate limited"));
+        assert!(text.contains("Retry in"));
+    }
+
+    #[test]
+    fn render_dashboard_help_overlay() {
+        let cfg = Config {
+            token: Some("ghp_test".to_string()),
+            refresh: 300,
+            owner: None,
+            max_prs: 500,
+            no_color: false,
+            log_level: "info".to_string(),
+        };
+        let mut app = App::new(&cfg);
+        app.help_visible = true;
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Keybindings"));
+    }
+
+    #[test]
+    fn render_dashboard_with_selected_pr() {
+        let mut app = make_app_with_prs();
+        app.selected = 1;
+        let backend = TestBackend::new(120, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Draft PR"));
+    }
+
+    #[test]
+    fn assess_readiness_delegates() {
+        let pr = make_app_with_prs().prs[0].clone();
+        assert_eq!(assess_readiness(&pr), MergeReadiness::Ready);
+    }
+
+    #[test]
+    fn get_approval_delegates() {
+        let pr = make_app_with_prs().prs[0].clone();
+        assert_eq!(get_approval(&pr), ApprovalState::Approved);
     }
 }

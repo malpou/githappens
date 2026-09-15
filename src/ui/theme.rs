@@ -64,3 +64,81 @@ pub fn up_to_date_glyph_and_color(
         UpToDateState::Unknown => ("○", Color::DarkGray),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::approval::ApprovalState;
+    use crate::analysis::mergeability::MergeReadiness;
+    use crate::github::pr::UpToDateState;
+
+    #[test]
+    fn merge_glyph_ready() {
+        let (g, c) = merge_glyph_and_color(&MergeReadiness::Ready);
+        assert_eq!(g, GLYPH_READY);
+        assert_eq!(c, COLOR_READY);
+    }
+
+    #[test]
+    fn merge_glyph_waiting() {
+        let (g, c) = merge_glyph_and_color(&MergeReadiness::Waiting);
+        assert_eq!(g, GLYPH_WAITING);
+        assert_eq!(c, COLOR_WAITING);
+    }
+
+    #[test]
+    fn merge_glyph_failed() {
+        let (g, c) = merge_glyph_and_color(&MergeReadiness::Failed);
+        assert_eq!(g, GLYPH_FAILED);
+        assert_eq!(c, COLOR_FAILED);
+    }
+
+    #[test]
+    fn approval_glyph_approved() {
+        let (g, c) = approval_glyph_and_color(&ApprovalState::Approved);
+        assert_eq!(g, GLYPH_APPROVED);
+        assert_eq!(c, COLOR_APPROVED);
+    }
+
+    #[test]
+    fn approval_glyph_changes_requested() {
+        let (g, c) = approval_glyph_and_color(&ApprovalState::ChangesRequested);
+        assert_eq!(g, GLYPH_CHANGES_REQUESTED);
+        assert_eq!(c, COLOR_CHANGES_REQUESTED);
+    }
+
+    #[test]
+    fn approval_glyph_pending() {
+        let (g, c) = approval_glyph_and_color(&ApprovalState::Pending);
+        assert_eq!(g, GLYPH_PENDING);
+        assert_eq!(c, COLOR_PENDING);
+    }
+
+    #[test]
+    fn approval_glyph_none() {
+        let (g, c) = approval_glyph_and_color(&ApprovalState::None);
+        assert_eq!(g, GLYPH_NONE);
+        assert_eq!(c, COLOR_NONE);
+    }
+
+    #[test]
+    fn up_to_date_glyph_up_to_date() {
+        let (g, c) = up_to_date_glyph_and_color(&UpToDateState::UpToDate);
+        assert_eq!(g, "●");
+        assert_eq!(c, Color::Green);
+    }
+
+    #[test]
+    fn up_to_date_glyph_out_of_date() {
+        let (g, c) = up_to_date_glyph_and_color(&UpToDateState::OutOfDate);
+        assert_eq!(g, "●");
+        assert_eq!(c, Color::Red);
+    }
+
+    #[test]
+    fn up_to_date_glyph_unknown() {
+        let (g, c) = up_to_date_glyph_and_color(&UpToDateState::Unknown);
+        assert_eq!(g, "○");
+        assert_eq!(c, Color::DarkGray);
+    }
+}

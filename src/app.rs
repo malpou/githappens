@@ -380,4 +380,569 @@ mod tests {
         app.toggle_help();
         assert!(!app.help_visible);
     }
+
+    #[test]
+    fn test_with_refresh_interval() {
+        let cfg = make_config();
+        let app = App::new(&cfg).with_refresh_interval(60);
+        assert_eq!(app.refresh_interval, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_last_refresh_secs_default_zero() {
+        let cfg = make_config();
+        let app = App::new(&cfg);
+        assert_eq!(app.last_refresh_secs(), 0);
+    }
+
+    #[test]
+    fn test_should_auto_refresh_initial_loading() {
+        let cfg = make_config();
+        let app = App::new(&cfg);
+        assert!(!app.should_auto_refresh());
+    }
+
+    #[test]
+    fn test_should_auto_refresh_ready_no_refresh() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.state = AppState::Ready;
+        app.last_refresh = Some(Instant::now());
+        assert!(!app.should_auto_refresh());
+    }
+
+    #[test]
+    fn test_should_auto_refresh_ready_stale() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg).with_refresh_interval(0);
+        app.state = AppState::Ready;
+        app.last_refresh = Some(Instant::now());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(app.should_auto_refresh());
+    }
+
+    #[test]
+    fn test_should_auto_refresh_not_ready() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.state = AppState::Refreshing;
+        assert!(!app.should_auto_refresh());
+    }
+
+    #[test]
+    fn test_is_refreshing() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        assert!(app.is_refreshing());
+        app.state = AppState::Ready;
+        assert!(!app.is_refreshing());
+        app.state = AppState::Refreshing;
+        assert!(app.is_refreshing());
+    }
+
+    #[test]
+    fn test_spinner_cycles() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        let first = app.spinner();
+        let second = app.spinner();
+        assert_ne!(first, second);
+        assert!(SPINNER_FRAMES.contains(&first));
+    }
+
+    #[test]
+    fn test_select_top_bottom() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![
+            PullRequestSnapshot {
+                number: 1,
+                title: "PR 1".to_string(),
+                url: "https://github.com/o/r/pull/1".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+            PullRequestSnapshot {
+                number: 2,
+                title: "PR 2".to_string(),
+                url: "https://github.com/o/r/pull/2".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+        ];
+        app.selected = 1;
+        app.select_top();
+        assert_eq!(app.selected, 0);
+        app.select_bottom();
+        assert_eq!(app.selected, 1);
+    }
+
+    #[test]
+    fn test_selected_pr() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![PullRequestSnapshot {
+            number: 1,
+            title: "PR 1".to_string(),
+            url: "https://github.com/o/r/pull/1".to_string(),
+            is_draft: false,
+            mergeable: crate::github::models::MergeableState::Mergeable,
+            repo: "o/r".to_string(),
+            rollup_state: None,
+            checks: vec![],
+            reviews: vec![],
+            up_to_date: crate::github::pr::UpToDateState::Unknown,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
+        }];
+        assert_eq!(app.selected_pr().unwrap().number, 1);
+    }
+
+    #[test]
+    fn test_selected_pr_empty() {
+        let cfg = make_config();
+        let app = App::new(&cfg);
+        assert!(app.selected_pr().is_none());
+    }
+
+    #[test]
+    fn test_handle_key_quit() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::Quit);
+    }
+
+    #[test]
+    fn test_handle_key_escape() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::Quit);
+    }
+
+    #[test]
+    fn test_handle_key_j_down() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![
+            PullRequestSnapshot {
+                number: 1,
+                title: "PR 1".to_string(),
+                url: "https://github.com/o/r/pull/1".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+            PullRequestSnapshot {
+                number: 2,
+                title: "PR 2".to_string(),
+                url: "https://github.com/o/r/pull/2".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+        ];
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert_eq!(app.selected, 1);
+    }
+
+    #[test]
+    fn test_handle_key_k_up() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![PullRequestSnapshot {
+            number: 1,
+            title: "PR 1".to_string(),
+            url: "https://github.com/o/r/pull/1".to_string(),
+            is_draft: false,
+            mergeable: crate::github::models::MergeableState::Mergeable,
+            repo: "o/r".to_string(),
+            rollup_state: None,
+            checks: vec![],
+            reviews: vec![],
+            up_to_date: crate::github::pr::UpToDateState::Unknown,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
+        }];
+        app.selected = 0;
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert_eq!(app.selected, 0);
+    }
+
+    #[test]
+    fn test_handle_key_g_top() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![PullRequestSnapshot {
+            number: 1,
+            title: "PR 1".to_string(),
+            url: "https://github.com/o/r/pull/1".to_string(),
+            is_draft: false,
+            mergeable: crate::github::models::MergeableState::Mergeable,
+            repo: "o/r".to_string(),
+            rollup_state: None,
+            checks: vec![],
+            reviews: vec![],
+            up_to_date: crate::github::pr::UpToDateState::Unknown,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
+        }];
+        app.selected = 0;
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert_eq!(app.selected, 0);
+    }
+
+    #[test]
+    fn test_handle_key_shift_g_bottom() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![
+            PullRequestSnapshot {
+                number: 1,
+                title: "PR 1".to_string(),
+                url: "https://github.com/o/r/pull/1".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+            PullRequestSnapshot {
+                number: 2,
+                title: "PR 2".to_string(),
+                url: "https://github.com/o/r/pull/2".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+        ];
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert_eq!(app.selected, 1);
+    }
+
+    #[test]
+    fn test_handle_key_enter() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![PullRequestSnapshot {
+            number: 1,
+            title: "PR 1".to_string(),
+            url: "https://github.com/o/r/pull/1".to_string(),
+            is_draft: false,
+            mergeable: crate::github::models::MergeableState::Mergeable,
+            repo: "o/r".to_string(),
+            rollup_state: None,
+            checks: vec![],
+            reviews: vec![],
+            up_to_date: crate::github::pr::UpToDateState::Unknown,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
+        }];
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(
+            action,
+            KeyAction::OpenUrl("https://github.com/o/r/pull/1".to_string())
+        );
+    }
+
+    #[test]
+    fn test_handle_key_enter_no_prs() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+    }
+
+    #[test]
+    fn test_handle_key_r_refresh() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::Refresh);
+    }
+
+    #[test]
+    fn test_handle_key_shift_r_force_refresh() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::ForceRefresh);
+    }
+
+    #[test]
+    fn test_handle_key_question_help() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert!(app.help_visible);
+    }
+
+    #[test]
+    fn test_handle_key_in_help_mode() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.help_visible = true;
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+        assert!(!app.help_visible);
+    }
+
+    #[test]
+    fn test_handle_key_unknown_in_help() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.help_visible = true;
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+    }
+
+    #[test]
+    fn test_handle_key_unknown_key() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let action = app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+        assert_eq!(action, KeyAction::None);
+    }
+
+    #[test]
+    fn test_apply_fetch_result_github_unavailable() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.apply_fetch_result(Err(FetchError::GitHubUnavailable));
+        match &app.state {
+            AppState::Error(msg) => assert!(msg.contains("GitHub unavailable")),
+            _ => panic!("expected Error state"),
+        }
+    }
+
+    #[test]
+    fn test_apply_fetch_result_timeout() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.apply_fetch_result(Err(FetchError::Timeout));
+        match &app.state {
+            AppState::Error(msg) => assert!(msg.contains("timed out")),
+            _ => panic!("expected Error state"),
+        }
+    }
+
+    #[test]
+    fn test_apply_fetch_result_other_error() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.apply_fetch_result(Err(FetchError::Network("conn refused".to_string())));
+        match &app.state {
+            AppState::Error(msg) => assert!(msg.contains("conn refused")),
+            _ => panic!("expected Error state"),
+        }
+    }
+
+    #[test]
+    fn test_apply_fetch_result_ok_adjusts_selected() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.selected = 5;
+        app.apply_fetch_result(Ok(FetchOutcome {
+            login: "ska".to_string(),
+            prs: vec![PullRequestSnapshot {
+                number: 1,
+                title: "PR".to_string(),
+                url: "https://github.com/o/r/pull/1".to_string(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            }],
+            truncated: false,
+        }));
+        assert_eq!(app.state, AppState::Ready);
+        assert_eq!(app.selected, 0);
+        assert!(!app.truncated);
+    }
+
+    #[test]
+    fn test_ready_and_failed_counts() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.prs = vec![
+            PullRequestSnapshot {
+                number: 1,
+                title: "Ready PR".to_string(),
+                url: String::new(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Mergeable,
+                repo: "o/r".to_string(),
+                rollup_state: Some(crate::github::models::RollupState::Success),
+                checks: vec![crate::github::pr::CheckSnapshot {
+                    name: "CI".to_string(),
+                    kind: crate::github::pr::CheckKind::CheckRun,
+                    completed: true,
+                    failed: false,
+                }],
+                reviews: vec![crate::github::pr::ReviewSnapshot {
+                    author: "a".to_string(),
+                    state: crate::github::models::ReviewState::Approved,
+                }],
+                up_to_date: crate::github::pr::UpToDateState::UpToDate,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+            PullRequestSnapshot {
+                number: 2,
+                title: "Failed PR".to_string(),
+                url: String::new(),
+                is_draft: false,
+                mergeable: crate::github::models::MergeableState::Conflicting,
+                repo: "o/r".to_string(),
+                rollup_state: None,
+                checks: vec![],
+                reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::OutOfDate,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
+            },
+        ];
+        assert_eq!(app.ready_count(), 1);
+        assert_eq!(app.failed_count(), 1);
+    }
+
+    #[test]
+    fn test_is_rate_limited() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        assert!(!app.is_rate_limited());
+        app.state = AppState::RateLimited {
+            retry_after_secs: 30,
+        };
+        assert!(app.is_rate_limited());
+    }
+
+    #[test]
+    fn test_rate_limit_retry_secs() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.state = AppState::RateLimited {
+            retry_after_secs: 30,
+        };
+        assert_eq!(app.rate_limit_retry_secs(), Some(30));
+    }
+
+    #[test]
+    fn test_rate_limit_retry_secs_not_limited() {
+        let cfg = make_config();
+        let app = App::new(&cfg);
+        assert_eq!(app.rate_limit_retry_secs(), None);
+    }
+
+    #[test]
+    fn test_can_refresh() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        assert!(app.can_refresh());
+        app.state = AppState::Refreshing;
+        assert!(!app.can_refresh());
+    }
+
+    #[test]
+    fn test_rate_limit_countdown_seconds() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.state = AppState::RateLimited {
+            retry_after_secs: 45,
+        };
+        app.last_refresh = Some(Instant::now());
+        let countdown = app.rate_limit_countdown();
+        assert!(countdown.is_some());
+        assert!(countdown.unwrap().contains('s'));
+    }
+
+    #[test]
+    fn test_rate_limit_countdown_not_limited() {
+        let cfg = make_config();
+        let app = App::new(&cfg);
+        assert!(app.rate_limit_countdown().is_none());
+    }
+
+    #[test]
+    fn test_should_auto_refresh_after_recent_refresh() {
+        let cfg = make_config();
+        let mut app = App::new(&cfg);
+        app.state = AppState::Ready;
+        app.last_refresh = Some(Instant::now());
+        assert!(!app.should_auto_refresh());
+    }
 }
