@@ -71,7 +71,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
         return;
     }
 
-    let header_cells = ["", "#", "Title", "Checks", "Approval"];
+    let header_cells = ["", "#", "Title", "Checks", "Approval", "Up-to-date"];
     let header = Row::new(header_cells).style(Style::default().fg(theme::COLOR_HEADER));
 
     let rows: Vec<Row> = app
@@ -85,6 +85,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             let checks_str = render_counts(&counts);
             let approval = collapse_reviews(&pr.reviews);
             let (rev_glyph, rev_color) = theme::approval_glyph_and_color(&approval);
+            let (utd_glyph, utd_color) = theme::up_to_date_glyph_and_color(&pr.up_to_date);
 
             let title = if pr.is_draft {
                 format!("[Draft] {}", pr.title)
@@ -98,6 +99,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
                 Line::from(title),
                 Line::from(checks_str),
                 Line::from(rev_glyph).style(Style::default().fg(rev_color)),
+                Line::from(utd_glyph).style(Style::default().fg(utd_color)),
             ])
             .style(if i == app.selected {
                 Style::default()
@@ -117,6 +119,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             Constraint::Min(1),
             Constraint::Length(theme::COLUMN_CHECKS_WIDTH as u16),
             Constraint::Length(theme::COLUMN_REVIEW_WIDTH as u16),
+            Constraint::Length(theme::COLUMN_UPTODATE_WIDTH as u16),
         ],
     )
     .header(header);

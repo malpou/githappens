@@ -1,6 +1,6 @@
 use crate::analysis::approval::{ApprovalState, collapse_reviews};
 use crate::github::models::{MergeableState, RollupState};
-use crate::github::pr::PullRequestSnapshot;
+use crate::github::pr::{PullRequestSnapshot, UpToDateState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeReadiness {
@@ -15,6 +15,10 @@ pub fn assess(pr: &PullRequestSnapshot) -> MergeReadiness {
     }
 
     if pr.mergeable == MergeableState::Conflicting {
+        return MergeReadiness::Failed;
+    }
+
+    if pr.up_to_date == UpToDateState::OutOfDate {
         return MergeReadiness::Failed;
     }
 
@@ -63,7 +67,7 @@ pub fn assess(pr: &PullRequestSnapshot) -> MergeReadiness {
 mod tests {
     use super::*;
     use crate::github::models::ReviewState;
-    use crate::github::pr::{CheckKind, CheckSnapshot, ReviewSnapshot};
+    use crate::github::pr::{CheckKind, CheckSnapshot, ReviewSnapshot, UpToDateState};
     use rstest::rstest;
 
     fn make_pr() -> PullRequestSnapshot {
@@ -85,6 +89,7 @@ mod tests {
                 author: "alice".to_string(),
                 state: ReviewState::Approved,
             }],
+            up_to_date: UpToDateState::UpToDate,
         }
     }
 
@@ -113,6 +118,20 @@ mod tests {
         let mut pr = make_pr();
         pr.mergeable = MergeableState::Conflicting;
         assert_eq!(assess(&pr), MergeReadiness::Failed);
+    }
+
+    #[rstest]
+    fn out_of_date_failed() {
+        let mut pr = make_pr();
+        pr.up_to_date = UpToDateState::OutOfDate;
+        assert_eq!(assess(&pr), MergeReadiness::Failed);
+    }
+
+    #[rstest]
+    fn up_to_date_ready() {
+        let pr = make_pr();
+        assert_eq!(pr.up_to_date, UpToDateState::UpToDate);
+        assert_eq!(assess(&pr), MergeReadiness::Ready);
     }
 
     #[rstest]

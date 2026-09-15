@@ -3,6 +3,13 @@ use crate::github::models::{
     ReviewState, RollupState, StatusState,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpToDateState {
+    UpToDate,
+    OutOfDate,
+    Unknown,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PullRequestSnapshot {
     pub number: u32,
@@ -14,6 +21,7 @@ pub struct PullRequestSnapshot {
     pub rollup_state: Option<RollupState>,
     pub checks: Vec<CheckSnapshot>,
     pub reviews: Vec<ReviewSnapshot>,
+    pub up_to_date: UpToDateState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,6 +78,7 @@ pub fn from_dto(node: &PullRequestNode) -> PullRequestSnapshot {
         rollup_state,
         checks,
         reviews,
+        up_to_date: UpToDateState::Unknown,
     }
 }
 

@@ -27,6 +27,7 @@ pub const COLUMN_INDICATOR_WIDTH: usize = 2;
 pub const COLUMN_NUMBER_WIDTH: usize = 6;
 pub const COLUMN_CHECKS_WIDTH: usize = 8;
 pub const COLUMN_REVIEW_WIDTH: usize = 10;
+pub const COLUMN_UPTODATE_WIDTH: usize = 10;
 
 pub fn merge_glyph_and_color(
     readiness: &crate::analysis::mergeability::MergeReadiness,
@@ -48,5 +49,16 @@ pub fn approval_glyph_and_color(
         }
         crate::analysis::approval::ApprovalState::Pending => (GLYPH_PENDING, COLOR_PENDING),
         crate::analysis::approval::ApprovalState::None => (GLYPH_NONE, COLOR_NONE),
+    }
+}
+
+pub fn up_to_date_glyph_and_color(
+    state: &crate::github::pr::UpToDateState,
+) -> (&'static str, Color) {
+    use crate::github::pr::UpToDateState;
+    match state {
+        UpToDateState::UpToDate => ("●", Color::Green),
+        UpToDateState::OutOfDate => ("●", Color::Red),
+        UpToDateState::Unknown => ("○", Color::DarkGray),
     }
 }

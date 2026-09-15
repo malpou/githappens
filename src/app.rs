@@ -312,6 +312,7 @@ mod tests {
                 rollup_state: None,
                 checks: vec![],
                 reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
             },
             PullRequestSnapshot {
                 number: 2,
@@ -323,6 +324,7 @@ mod tests {
                 rollup_state: None,
                 checks: vec![],
                 reviews: vec![],
+                up_to_date: crate::github::pr::UpToDateState::Unknown,
             },
         ];
         app.select_down();

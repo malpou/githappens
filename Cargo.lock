@@ -637,6 +637,7 @@ dependencies = [
  "clap",
  "crossterm",
  "directories",
+ "futures",
  "insta",
  "pretty_assertions",
  "ratatui",

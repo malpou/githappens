@@ -2,13 +2,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode, header};
+use serde::Deserialize;
 use serde_json::json;
 use thiserror::Error;
 
 use crate::github::models::{GraphQLResponse, PullRequestNode};
-use crate::github::pr::{self, PullRequestSnapshot};
+use crate::github::pr::{self, PullRequestSnapshot, UpToDateState};
 
 const GRAPHQL_ENDPOINT: &str = "https://api.github.com/graphql";
+const REST_API_BASE: &str = "https://api.github.com";
 const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 const RETRY_BACKOFF: Duration = Duration::from_secs(1);
 
@@ -79,6 +81,55 @@ impl HttpGitHubFetcher {
             client,
             token,
             endpoint,
+        }
+    }
+
+    async fn fetch_mergeable_state(&self, repo: &str, number: u32) -> UpToDateState {
+        let url = format!("{REST_API_BASE}/repos/{repo}/pulls/{number}");
+        let result = self
+            .client
+            .get(&url)
+            .header(header::AUTHORIZATION, format!("Bearer {}", self.token))
+            .header(header::ACCEPT, "application/vnd.github+json")
+            .send()
+            .await;
+
+        let response = match result {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!("fetch_mergeable_state failed for {repo}#{number}: {e}");
+                return UpToDateState::Unknown;
+            }
+        };
+
+        if !response.status().is_success() {
+            tracing::warn!(
+                "fetch_mergeable_state {repo}#{number} returned {}",
+                response.status()
+            );
+            return UpToDateState::Unknown;
+        }
+
+        let text = match response.text().await {
+            Ok(t) => t,
+            Err(_) => return UpToDateState::Unknown,
+        };
+
+        #[derive(Deserialize)]
+        struct PrRestResponse {
+            #[serde(default)]
+            mergeable_state: Option<String>,
+        }
+
+        let parsed: PrRestResponse = match serde_json::from_str(&text) {
+            Ok(p) => p,
+            Err(_) => return UpToDateState::Unknown,
+        };
+
+        match parsed.mergeable_state.as_deref() {
+            Some("clean") | Some("unstable") | Some("has_hooks") => UpToDateState::UpToDate,
+            Some("behind") | Some("dirty") | Some("blocked") => UpToDateState::OutOfDate,
+            _ => UpToDateState::Unknown,
         }
     }
 
@@ -227,7 +278,16 @@ impl GitHubFetcher for HttpGitHubFetcher {
             truncated = true;
         }
 
-        let prs: Vec<PullRequestSnapshot> = all_prs.iter().map(pr::from_dto).collect();
+        let mut prs: Vec<PullRequestSnapshot> = all_prs.iter().map(pr::from_dto).collect();
+
+        let up_to_date_futures: Vec<_> = prs
+            .iter()
+            .map(|p| self.fetch_mergeable_state(&p.repo, p.number))
+            .collect();
+        let up_to_date_results = futures::future::join_all(up_to_date_futures).await;
+        for (pr, state) in prs.iter_mut().zip(up_to_date_results) {
+            pr.up_to_date = state;
+        }
 
         Ok(FetchOutcome {
             login,
