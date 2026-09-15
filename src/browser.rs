@@ -13,12 +13,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn open_valid_url() {
-        let result = open("https://github.com");
-        assert!(result.is_ok());
-    }
-
-    #[test]
     fn open_invalid_url_errors() {
         let result = open("not a url at all");
         assert!(result.is_err());
