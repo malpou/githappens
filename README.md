@@ -2,15 +2,17 @@
 
 > Git happens. Now you can see it.
 
-A personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, workflow status, approval state, and up-to-date tracking.
+A personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, diff stats, workflow status, approval state, up-to-date tracking, and PR age.
 
 ## Features
 
 - Lists all your open PRs across all repos in a single dashboard
 - Color-coded merge-readiness: green (ready), yellow (waiting), red (failed)
+- Diff column showing additions (green) and deletions (red) per PR
 - Workflow pass/total counts per PR (e.g. `5/7`)
 - Approval state indicators (approved, changes requested, pending, none)
 - Up-to-date column showing whether the PR branch is current with its base
+- Age column showing time since PR creation (e.g. `2d`, `5h`, `3mo`)
 - Animated braille spinner during refresh (non-blocking event loop)
 - Press Enter to open a PR in your default browser
 - Auto-refresh with configurable interval
@@ -145,6 +147,17 @@ Approval is computed by collapsing to the latest review per author (last wins).
 | `○` | gray | Unknown | Could not fetch state (API error or rate limited) |
 
 Fetched via the GitHub REST API `mergeable_state` field per PR.
+
+### Diff
+
+Shows additions and deletions as `+N/-N` (e.g. `+13/-3`). Additions are shown
+in green and deletions in red when non-zero. Both default to the normal text
+color when zero.
+
+### Age
+
+Shows time elapsed since the PR was created, auto-scaled to the most
+significant unit: `30s`, `5m`, `3h`, `7d`, `2mo`, `1y`.
 
 ## Development
 

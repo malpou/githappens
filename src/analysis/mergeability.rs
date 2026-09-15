@@ -138,6 +138,13 @@ mod tests {
     }
 
     #[rstest]
+    fn up_to_date_unknown_still_ready() {
+        let mut pr = make_pr();
+        pr.up_to_date = UpToDateState::Unknown;
+        assert_eq!(assess(&pr), MergeReadiness::Ready);
+    }
+
+    #[rstest]
     fn checks_success_no_approval_waiting() {
         let mut pr = make_pr();
         pr.reviews = vec![];

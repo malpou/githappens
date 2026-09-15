@@ -2,7 +2,7 @@
 
 ## Project overview
 
-`githappens` is a personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, workflow status, approval state, and up-to-date tracking.
+`githappens` is a personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](https://github.com/ratatui/ratatui). It lists your open GitHub pull requests in a TUI table with merge-readiness indicators, diff stats, workflow status, approval state, up-to-date tracking, and PR age.
 
 - **Binary name**: `githappens`
 - **Tagline**: *"Git happens. Now you can see it."*

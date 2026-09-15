@@ -201,12 +201,11 @@ fn format_age(created_at: &str) -> String {
         return format!("{days}d");
     }
     let months = days / 30;
-    let years = days / 365;
-    if years > 0 {
-        format!("{years}y")
-    } else {
-        format!("{months}mo")
+    if months < 12 {
+        return format!("{months}mo");
     }
+    let years = months / 12;
+    format!("{years}y")
 }
 
 fn render_footer(frame: &mut ratatui::Frame, area: Rect, app: &App) {
@@ -250,6 +249,71 @@ pub fn get_approval(pr: &crate::github::pr::PullRequestSnapshot) -> ApprovalStat
 mod tests {
     use super::*;
     use crate::analysis::workflows::WorkflowCounts;
+    use chrono::{Duration, Utc};
+
+    #[test]
+    fn format_age_seconds() {
+        let ts = (Utc::now() - Duration::seconds(30)).to_rfc3339();
+        assert_eq!(format_age(&ts), "30s");
+    }
+
+    #[test]
+    fn format_age_minutes() {
+        let ts = (Utc::now() - Duration::minutes(5)).to_rfc3339();
+        assert_eq!(format_age(&ts), "5m");
+    }
+
+    #[test]
+    fn format_age_hours() {
+        let ts = (Utc::now() - Duration::hours(3)).to_rfc3339();
+        assert_eq!(format_age(&ts), "3h");
+    }
+
+    #[test]
+    fn format_age_days() {
+        let ts = (Utc::now() - Duration::days(7)).to_rfc3339();
+        assert_eq!(format_age(&ts), "7d");
+    }
+
+    #[test]
+    fn format_age_months() {
+        let ts = (Utc::now() - Duration::days(60)).to_rfc3339();
+        assert_eq!(format_age(&ts), "2mo");
+    }
+
+    #[test]
+    fn format_age_just_under_a_year() {
+        let ts = (Utc::now() - Duration::days(350)).to_rfc3339();
+        assert_eq!(format_age(&ts), "11mo");
+    }
+
+    #[test]
+    fn format_age_twelve_months_shows_year() {
+        let ts = (Utc::now() - Duration::days(360)).to_rfc3339();
+        assert_eq!(format_age(&ts), "1y");
+    }
+
+    #[test]
+    fn format_age_one_year() {
+        let ts = (Utc::now() - Duration::days(365)).to_rfc3339();
+        assert_eq!(format_age(&ts), "1y");
+    }
+
+    #[test]
+    fn format_age_multiple_years() {
+        let ts = (Utc::now() - Duration::days(730)).to_rfc3339();
+        assert_eq!(format_age(&ts), "2y");
+    }
+
+    #[test]
+    fn format_age_invalid_returns_question() {
+        assert_eq!(format_age("not a date"), "?");
+    }
+
+    #[test]
+    fn format_age_empty_returns_question() {
+        assert_eq!(format_age(""), "?");
+    }
 
     #[test]
     fn render_counts_zero() {
