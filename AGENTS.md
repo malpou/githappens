@@ -100,8 +100,8 @@ The status indicator is the **worst** of all constituent signals:
 ### Up-to-date tracking
 
 Per-PR `mergeable_state` fetched via REST API (`/repos/{repo}/pulls/{number}`):
-- `clean`, `unstable`, `has_hooks` → up-to-date (green)
-- `behind`, `dirty`, `blocked` → out-of-date (red)
+- `clean`, `unstable`, `has_hooks`, `blocked` → up-to-date (green)
+- `behind`, `dirty` → out-of-date (red)
 - API failure or unrecognized state → unknown (grey circle)
 
 Out-of-date PRs are treated as **Failed** in the merge-readiness assessment.

@@ -127,8 +127,10 @@ impl HttpGitHubFetcher {
         };
 
         match parsed.mergeable_state.as_deref() {
-            Some("clean") | Some("unstable") | Some("has_hooks") => UpToDateState::UpToDate,
-            Some("behind") | Some("dirty") | Some("blocked") => UpToDateState::OutOfDate,
+            Some("clean") | Some("unstable") | Some("has_hooks") | Some("blocked") => {
+                UpToDateState::UpToDate
+            }
+            Some("behind") | Some("dirty") => UpToDateState::OutOfDate,
             _ => UpToDateState::Unknown,
         }
     }

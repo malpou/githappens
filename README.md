@@ -143,7 +143,7 @@ Approval is computed by collapsing to the latest review per author (last wins).
 | Glyph | Color | State | Meaning |
 |-------|-------|-------|---------|
 | `●` | green | Up to date | Branch is current with base (`clean`, `unstable`, `has_hooks`) |
-| `●` | red | Out of date | Branch is behind, dirty, or blocked |
+| `●` | red | Out of date | Branch is behind or dirty |
 | `○` | gray | Unknown | Could not fetch state (API error or rate limited) |
 
 Fetched via the GitHub REST API `mergeable_state` field per PR.
