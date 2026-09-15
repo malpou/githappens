@@ -205,7 +205,11 @@ fn format_age(created_at: &str) -> String {
         return format!("{months}mo");
     }
     let years = days / 365;
-    format!("{years}y")
+    if years > 0 {
+        format!("{years}y")
+    } else {
+        format!("{months}mo")
+    }
 }
 
 fn render_footer(frame: &mut ratatui::Frame, area: Rect, app: &App) {
