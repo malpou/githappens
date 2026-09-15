@@ -29,7 +29,7 @@ pub fn assess(pr: &PullRequestSnapshot) -> MergeReadiness {
     }
 
     if pr.mergeable == MergeableState::Unknown {
-        return MergeReadiness::Waiting;
+        return MergeReadiness::Failed;
     }
 
     let checks_pending = pr.checks.iter().any(|c| !c.completed && !c.failed);
@@ -102,10 +102,10 @@ mod tests {
     }
 
     #[rstest]
-    fn mergeable_unknown_waiting() {
+    fn mergeable_unknown_failed() {
         let mut pr = make_pr();
         pr.mergeable = MergeableState::Unknown;
-        assert_eq!(assess(&pr), MergeReadiness::Waiting);
+        assert_eq!(assess(&pr), MergeReadiness::Failed);
     }
 
     #[rstest]

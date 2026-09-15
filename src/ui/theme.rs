@@ -26,7 +26,7 @@ pub const EMPTY_STATE_MSG: &str = "You have no open PRs. Go open one!";
 pub const COLUMN_INDICATOR_WIDTH: usize = 2;
 pub const COLUMN_NUMBER_WIDTH: usize = 6;
 pub const COLUMN_CHECKS_WIDTH: usize = 8;
-pub const COLUMN_REVIEW_WIDTH: usize = 3;
+pub const COLUMN_REVIEW_WIDTH: usize = 10;
 
 pub fn merge_glyph_and_color(
     readiness: &crate::analysis::mergeability::MergeReadiness,

@@ -71,7 +71,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
         return;
     }
 
-    let header_cells = ["", "#", "Title", "Checks", "Rev"];
+    let header_cells = ["", "#", "Title", "Checks", "Approval"];
     let header = Row::new(header_cells).style(Style::default().fg(theme::COLOR_HEADER));
 
     let rows: Vec<Row> = app
