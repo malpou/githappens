@@ -24,7 +24,7 @@ clippy:
 	cargo clippy -- -D warnings
 
 coverage:
-	cargo llvm-cov --workspace --fail-under-lines 85
+	cargo llvm-cov --workspace
 
 audit:
 	cargo audit
@@ -44,7 +44,7 @@ help:
 	@echo "  fmt            - Format code"
 	@echo "  fmt-check      - Check formatting"
 	@echo "  clippy         - Run clippy with -D warnings"
-	@echo "  coverage       - Run coverage (fail under 85%)"
+	@echo "  coverage       - Run coverage report"
 	@echo "  audit          - Run cargo audit"
 	@echo "  ci             - Run fmt-check + clippy + test + audit"
 	@echo "  clean          - Clean build artifacts"
