@@ -83,7 +83,7 @@ async fn run_app(
     let tick_interval = Duration::from_millis(250);
 
     loop {
-        terminal.draw(|frame| ui::render(frame, &app))?;
+        terminal.draw(|frame| ui::render(frame, &mut app))?;
 
         if let Some(event) = githappens::event::read_event(tick_interval) {
             match event {

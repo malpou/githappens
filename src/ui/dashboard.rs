@@ -9,7 +9,7 @@ use crate::analysis::workflows::{WorkflowCounts, count_checks, render_counts};
 use crate::app::App;
 use crate::ui::theme;
 
-pub fn render(frame: &mut ratatui::Frame, app: &App) {
+pub fn render(frame: &mut ratatui::Frame, app: &mut App) {
     let area = frame.area();
 
     if app.help_visible {
@@ -34,7 +34,7 @@ pub fn render(frame: &mut ratatui::Frame, app: &App) {
     }
 }
 
-fn render_dashboard(frame: &mut ratatui::Frame, area: Rect, app: &App) {
+fn render_dashboard(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     let chunks = Layout::vertical([
         Constraint::Length(3),
         Constraint::Min(1),
@@ -42,18 +42,28 @@ fn render_dashboard(frame: &mut ratatui::Frame, area: Rect, app: &App) {
     ])
     .split(area);
 
-    render_header(frame, chunks[0], app);
+    render_header(frame, chunks[0], &mut *app);
     render_table(frame, chunks[1], app);
     render_footer(frame, chunks[2], app);
 }
 
-fn render_header(frame: &mut ratatui::Frame, area: Rect, app: &App) {
-    let title = format!(
-        " {} — {}'s open PRs · refreshed {}s ago ",
-        theme::HEADER_LABEL.trim(),
-        app.viewer_login,
-        app.last_refresh_secs()
-    );
+fn render_header(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
+    let title = if app.is_refreshing() {
+        let spinner = app.spinner();
+        format!(
+            " {} {} — {}'s open PRs · refreshing... ",
+            spinner,
+            theme::HEADER_LABEL.trim(),
+            app.viewer_login,
+        )
+    } else {
+        format!(
+            " {} — {}'s open PRs · refreshed {}s ago ",
+            theme::HEADER_LABEL.trim(),
+            app.viewer_login,
+            app.last_refresh_secs()
+        )
+    };
 
     let header = Block::default()
         .borders(Borders::BOTTOM)

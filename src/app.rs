@@ -33,7 +33,10 @@ pub struct App {
     pub last_refresh: Option<Instant>,
     pub truncated: bool,
     refresh_interval: Duration,
+    spinner_idx: usize,
 }
+
+const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 impl App {
     pub fn new(_config: &Config) -> Self {
@@ -46,6 +49,7 @@ impl App {
             last_refresh: None,
             truncated: false,
             refresh_interval: Duration::from_secs(300),
+            spinner_idx: 0,
         }
     }
 
@@ -67,6 +71,16 @@ impl App {
         self.last_refresh
             .map(|t| t.elapsed() >= self.refresh_interval)
             .unwrap_or(true)
+    }
+
+    pub fn is_refreshing(&self) -> bool {
+        matches!(self.state, AppState::Refreshing | AppState::Loading)
+    }
+
+    pub fn spinner(&mut self) -> &'static str {
+        let frame = SPINNER_FRAMES[self.spinner_idx % SPINNER_FRAMES.len()];
+        self.spinner_idx = self.spinner_idx.wrapping_add(1);
+        frame
     }
 
     pub fn select_down(&mut self) {
