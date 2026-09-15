@@ -3,6 +3,8 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Row, Table};
 
+use chrono::{DateTime, Utc};
+
 use crate::analysis::approval::{ApprovalState, collapse_reviews};
 use crate::analysis::mergeability::{MergeReadiness, assess};
 use crate::analysis::workflows::{WorkflowCounts, count_checks, render_counts};
@@ -87,7 +89,16 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
         return;
     }
 
-    let header_cells = ["", "#", "Title", "Checks", "Approval", "Up-to-date"];
+    let header_cells = [
+        "",
+        "#",
+        "Title",
+        "Diff",
+        "Checks",
+        "Approval",
+        "Up-to-date",
+        "Age",
+    ];
     let header = Row::new(header_cells).style(Style::default().fg(theme::COLOR_HEADER));
 
     let rows: Vec<Row> = app
@@ -102,6 +113,8 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             let approval = collapse_reviews(&pr.reviews);
             let (rev_glyph, rev_color) = theme::approval_glyph_and_color(&approval);
             let (utd_glyph, utd_color) = theme::up_to_date_glyph_and_color(&pr.up_to_date);
+            let diff_str = format!("+{}/-{}", pr.additions, pr.deletions);
+            let age_str = format_age(&pr.created_at);
 
             let title = if pr.is_draft {
                 format!("[Draft] {}", pr.title)
@@ -113,9 +126,11 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
                 Line::from(glyph).style(Style::default().fg(color)),
                 Line::from(pr.number.to_string()),
                 Line::from(title),
+                Line::from(diff_str),
                 Line::from(checks_str),
                 Line::from(rev_glyph).style(Style::default().fg(rev_color)),
                 Line::from(utd_glyph).style(Style::default().fg(utd_color)),
+                Line::from(age_str),
             ])
             .style(if i == app.selected {
                 Style::default()
@@ -133,14 +148,46 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             Constraint::Length(theme::COLUMN_INDICATOR_WIDTH as u16),
             Constraint::Length(theme::COLUMN_NUMBER_WIDTH as u16),
             Constraint::Min(1),
+            Constraint::Length(theme::COLUMN_DIFF_WIDTH as u16),
             Constraint::Length(theme::COLUMN_CHECKS_WIDTH as u16),
             Constraint::Length(theme::COLUMN_REVIEW_WIDTH as u16),
             Constraint::Length(theme::COLUMN_UPTODATE_WIDTH as u16),
+            Constraint::Length(theme::COLUMN_AGE_WIDTH as u16),
         ],
     )
     .header(header);
 
     frame.render_widget(table, area);
+}
+
+fn format_age(created_at: &str) -> String {
+    let parsed: DateTime<Utc> = match DateTime::parse_from_rfc3339(created_at) {
+        Ok(dt) => dt.with_timezone(&Utc),
+        Err(_) => return "?".to_string(),
+    };
+    let elapsed = Utc::now().signed_duration_since(parsed);
+    let secs = elapsed.num_seconds();
+    if secs < 60 {
+        return format!("{secs}s");
+    }
+    let mins = secs / 60;
+    if mins < 60 {
+        return format!("{mins}m");
+    }
+    let hours = mins / 60;
+    if hours < 24 {
+        return format!("{hours}h");
+    }
+    let days = hours / 24;
+    if days < 30 {
+        return format!("{days}d");
+    }
+    let months = days / 30;
+    if months < 12 {
+        return format!("{months}mo");
+    }
+    let years = days / 365;
+    format!("{years}y")
 }
 
 fn render_footer(frame: &mut ratatui::Frame, area: Rect, app: &App) {

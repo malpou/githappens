@@ -324,6 +324,9 @@ mod tests {
                 checks: vec![],
                 reviews: vec![],
                 up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
             },
             PullRequestSnapshot {
                 number: 2,
@@ -336,6 +339,9 @@ mod tests {
                 checks: vec![],
                 reviews: vec![],
                 up_to_date: crate::github::pr::UpToDateState::Unknown,
+                additions: 0,
+                deletions: 0,
+                created_at: String::new(),
             },
         ];
         app.select_down();

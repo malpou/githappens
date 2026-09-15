@@ -66,6 +66,9 @@ fn make_pr(number: u32, title: &str) -> PullRequestSnapshot {
         checks: vec![],
         reviews: vec![],
         up_to_date: githappens::github::pr::UpToDateState::Unknown,
+        additions: 0,
+        deletions: 0,
+        created_at: String::new(),
     }
 }
 

@@ -14,7 +14,7 @@
             "url": "https://github.com/owner/repo/pull/42",
             "isDraft": false,
             "mergeable": "MERGEABLE",
-            "headRefOid": "abc123",
+            "headRefOid": "abc123","additions": 0,"deletions": 0,"createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "owner/repo"},
             "commits": {
               "nodes": [{

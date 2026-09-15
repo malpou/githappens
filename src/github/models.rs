@@ -54,6 +54,9 @@ pub struct PullRequestNode {
     pub is_draft: bool,
     pub mergeable: MergeableState,
     pub head_ref_oid: Option<String>,
+    pub additions: u32,
+    pub deletions: u32,
+    pub created_at: String,
     pub repository: Option<RepositoryNode>,
     pub commits: CommitConnection,
     pub reviews: ReviewConnection,
@@ -215,6 +218,9 @@ mod tests {
                             "isDraft": false,
                             "mergeable": "MERGEABLE",
                             "headRefOid": "abc123",
+                            "additions": 10,
+                            "deletions": 2,
+                            "createdAt": "2024-01-01T00:00:00Z",
                             "repository": {"nameWithOwner": "owner/repo"},
                             "commits": {
                                 "nodes": [{
@@ -269,6 +275,9 @@ mod tests {
                             "isDraft": false,
                             "mergeable": "MERGEABLE",
                             "headRefOid": null,
+                            "additions": 0,
+                            "deletions": 0,
+                            "createdAt": "2024-01-01T00:00:00Z",
                             "repository": {"nameWithOwner": "o/r"},
                             "commits": {
                                 "nodes": [{

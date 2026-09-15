@@ -90,6 +90,9 @@ mod tests {
                 state: ReviewState::Approved,
             }],
             up_to_date: UpToDateState::UpToDate,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
         }
     }
 

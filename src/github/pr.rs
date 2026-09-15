@@ -18,6 +18,9 @@ pub struct PullRequestSnapshot {
     pub is_draft: bool,
     pub mergeable: MergeableState,
     pub repo: String,
+    pub additions: u32,
+    pub deletions: u32,
+    pub created_at: String,
     pub rollup_state: Option<RollupState>,
     pub checks: Vec<CheckSnapshot>,
     pub reviews: Vec<ReviewSnapshot>,
@@ -75,6 +78,9 @@ pub fn from_dto(node: &PullRequestNode) -> PullRequestSnapshot {
         is_draft: node.is_draft,
         mergeable: node.mergeable.clone(),
         repo,
+        additions: node.additions,
+        deletions: node.deletions,
+        created_at: node.created_at.clone(),
         rollup_state,
         checks,
         reviews,
@@ -140,6 +146,9 @@ mod tests {
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "abc",
+            "additions": 10,
+            "deletions": 2,
+            "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "owner/repo"},
             "commits": {
                 "nodes": [{
@@ -188,6 +197,9 @@ mod tests {
             "isDraft": true,
             "mergeable": "UNKNOWN",
             "headRefOid": null,
+            "additions": 0,
+            "deletions": 0,
+            "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "o/r"},
             "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
             "reviews": {"nodes": []}
@@ -209,6 +221,9 @@ mod tests {
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "def",
+            "additions": 5,
+            "deletions": 15,
+            "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "o/r"},
             "commits": {"nodes": [{"commit": {"statusCheckRollup": {
                 "state": "FAILURE",
@@ -237,6 +252,9 @@ mod tests {
             "isDraft": false,
             "mergeable": "CONFLICTING",
             "headRefOid": "ghi",
+            "additions": 0,
+            "deletions": 0,
+            "createdAt": "2024-01-01T00:00:00Z",
             "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
             "reviews": {"nodes": []}
         }));
@@ -254,6 +272,9 @@ mod tests {
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "jkl",
+            "additions": 0,
+            "deletions": 0,
+            "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "o/r"},
             "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
             "reviews": {"nodes": [
@@ -276,6 +297,9 @@ mod tests {
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "mno",
+            "additions": 0,
+            "deletions": 0,
+            "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "o/r"},
             "commits": {"nodes": [{"commit": {"statusCheckRollup": {
                 "state": "FAILURE",

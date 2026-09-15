@@ -28,6 +28,8 @@ pub const COLUMN_NUMBER_WIDTH: usize = 6;
 pub const COLUMN_CHECKS_WIDTH: usize = 8;
 pub const COLUMN_REVIEW_WIDTH: usize = 10;
 pub const COLUMN_UPTODATE_WIDTH: usize = 10;
+pub const COLUMN_DIFF_WIDTH: usize = 14;
+pub const COLUMN_AGE_WIDTH: usize = 6;
 
 pub fn merge_glyph_and_color(
     readiness: &crate::analysis::mergeability::MergeReadiness,

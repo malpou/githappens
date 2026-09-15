@@ -13,6 +13,9 @@ query OpenPRs($first: Int!, $after: String) {
         isDraft
         mergeable
         headRefOid
+        additions
+        deletions
+        createdAt
         repository {
           nameWithOwner
         }
