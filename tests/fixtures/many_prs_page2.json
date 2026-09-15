@@ -1,0 +1,37 @@
+{
+  "data": {
+    "viewer": {
+      "login": "ska",
+      "pullRequests": {
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": null
+        },
+        "nodes": [
+          {
+            "number": 98,
+            "title": "PR 98",
+            "url": "https://github.com/owner/repo/pull/98",
+            "isDraft": false,
+            "mergeable": "CONFLICTING",
+            "headRefOid": "oid98",
+            "repository": {"nameWithOwner": "owner/repo"},
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
+            "reviews": {"nodes": []}
+          },
+          {
+            "number": 100,
+            "title": "PR 100 duplicate",
+            "url": "https://github.com/owner/repo/pull/100",
+            "isDraft": false,
+            "mergeable": "MERGEABLE",
+            "headRefOid": "oid100",
+            "repository": {"nameWithOwner": "owner/repo"},
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
+            "reviews": {"nodes": []}
+          }
+        ]
+      }
+    }
+  }
+}

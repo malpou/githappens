@@ -1,0 +1,44 @@
+{
+  "data": {
+    "viewer": {
+      "login": "ska",
+      "pullRequests": {
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": null
+        },
+        "nodes": [
+          {
+            "number": 42,
+            "title": "Add flaky CI retry",
+            "url": "https://github.com/owner/repo/pull/42",
+            "isDraft": false,
+            "mergeable": "MERGEABLE",
+            "headRefOid": "abc123",
+            "repository": {"nameWithOwner": "owner/repo"},
+            "commits": {
+              "nodes": [{
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS",
+                    "contexts": {
+                      "nodes": [
+                        {"__typename": "CheckRun", "name": "CI", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                        {"__typename": "CheckRun", "name": "Lint", "status": "COMPLETED", "conclusion": "SUCCESS"}
+                      ]
+                    }
+                  }
+                }
+              }]
+            },
+            "reviews": {
+              "nodes": [
+                {"author": {"login": "alice"}, "state": "APPROVED", "submittedAt": "2024-01-01T00:00:00Z"}
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+query OpenPRs($first: Int!, $after: String) {
+  viewer {
+    login
+    pullRequests(states: OPEN, first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        number
+        title
+        url
+        isDraft
+        mergeable
+        headRefOid
+        repository {
+          nameWithOwner
+        }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+                contexts {
+                  __typename
+                  ... on CheckRun {
+                    name
+                    status
+                    conclusion
+                  }
+                  ... on StatusContext {
+                    name
+                    state
+                  }
+                }
+              }
+            }
+          }
+        }
+        reviews(first: 100) {
+          nodes {
+            author {
+              login
+            }
+            state
+            submittedAt
+          }
+        }
+      }
+    }
+  }
+}

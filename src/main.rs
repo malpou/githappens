@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 
-mod config;
-mod log;
+use githappens::config;
+use githappens::log;
 
 fn main() -> Result<()> {
     let cfg = config::Config::parse();

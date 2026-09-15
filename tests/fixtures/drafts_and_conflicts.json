@@ -1,0 +1,34 @@
+{
+  "data": {
+    "viewer": {
+      "login": "ska",
+      "pullRequests": {
+        "pageInfo": {"hasNextPage": false, "endCursor": null},
+        "nodes": [
+          {
+            "number": 1,
+            "title": "Draft PR",
+            "url": "https://github.com/o/r/pull/1",
+            "isDraft": true,
+            "mergeable": "MERGEABLE",
+            "headRefOid": "a",
+            "repository": {"nameWithOwner": "o/r"},
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS", "contexts": {"nodes": [{"__typename": "CheckRun", "name": "CI", "status": "COMPLETED", "conclusion": "SUCCESS"}]}}}}]},
+            "reviews": {"nodes": [{"author": {"login": "rev"}, "state": "APPROVED", "submittedAt": "2024-01-01T00:00:00Z"}]}
+          },
+          {
+            "number": 2,
+            "title": "Conflicting PR",
+            "url": "https://github.com/o/r/pull/2",
+            "isDraft": false,
+            "mergeable": "CONFLICTING",
+            "headRefOid": "b",
+            "repository": {"nameWithOwner": "o/r"},
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [{"__typename": "CheckRun", "name": "CI", "status": "COMPLETED", "conclusion": "FAILURE"}]}}}}]},
+            "reviews": {"nodes": [{"author": {"login": "rev"}, "state": "CHANGES_REQUESTED", "submittedAt": "2024-01-01T00:00:00Z"}]}
+          }
+        ]
+      }
+    }
+  }
+}
