@@ -1,6 +1,6 @@
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::Line;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Row, Table};
 
 use chrono::{DateTime, Utc};
@@ -113,7 +113,25 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             let approval = collapse_reviews(&pr.reviews);
             let (rev_glyph, rev_color) = theme::approval_glyph_and_color(&approval);
             let (utd_glyph, utd_color) = theme::up_to_date_glyph_and_color(&pr.up_to_date);
-            let diff_str = format!("+{}/-{}", pr.additions, pr.deletions);
+            let diff_spans = vec![
+                Span::styled(
+                    format!("+{}", pr.additions),
+                    if pr.additions > 0 {
+                        Style::default().fg(Color::Green)
+                    } else {
+                        Style::default()
+                    },
+                ),
+                Span::raw("/"),
+                Span::styled(
+                    format!("-{}", pr.deletions),
+                    if pr.deletions > 0 {
+                        Style::default().fg(Color::Red)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ];
             let age_str = format_age(&pr.created_at);
 
             let title = if pr.is_draft {
@@ -126,7 +144,7 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
                 Line::from(glyph).style(Style::default().fg(color)),
                 Line::from(pr.number.to_string()),
                 Line::from(title),
-                Line::from(diff_str),
+                Line::from(diff_spans),
                 Line::from(checks_str),
                 Line::from(rev_glyph).style(Style::default().fg(rev_color)),
                 Line::from(utd_glyph).style(Style::default().fg(utd_color)),
