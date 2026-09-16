@@ -115,16 +115,24 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             let (utd_glyph, utd_color) = theme::up_to_date_glyph_and_color(&pr.up_to_date);
             let diff_spans = vec![
                 Span::styled(
-                    format!("+{}", pr.additions),
                     if pr.additions > 0 {
-                        Style::default().fg(Color::Green)
+                        format!("+{}", pr.additions)
+                    } else {
+                        "0".to_string()
+                    },
+                    if pr.additions > 0 {
+                        Style::default().fg(theme::COLOR_READY)
                     } else {
                         Style::default()
                     },
                 ),
                 Span::raw("/"),
                 Span::styled(
-                    format!("-{}", pr.deletions),
+                    if pr.deletions > 0 {
+                        format!("-{}", pr.deletions)
+                    } else {
+                        "0".to_string()
+                    },
                     if pr.deletions > 0 {
                         Style::default().fg(Color::Red)
                     } else {
@@ -141,13 +149,13 @@ fn render_table(frame: &mut ratatui::Frame, area: Rect, app: &App) {
             };
 
             Row::new([
-                Line::from(glyph).style(Style::default().fg(color)),
+                Line::from(format!(" {glyph}")).style(Style::default().fg(color)),
                 Line::from(pr.number.to_string()),
                 Line::from(title),
                 Line::from(diff_spans),
                 Line::from(checks_str),
-                Line::from(rev_glyph).style(Style::default().fg(rev_color)),
-                Line::from(utd_glyph).style(Style::default().fg(utd_color)),
+                Line::from(format!(" {rev_glyph}")).style(Style::default().fg(rev_color)),
+                Line::from(format!(" {utd_glyph}")).style(Style::default().fg(utd_color)),
                 Line::from(age_str),
             ])
             .style(if i == app.selected {
