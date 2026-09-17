@@ -89,13 +89,16 @@ pub fn strip_markdown(text: &str) -> String {
         }
         if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
             result.push_str("  ");
-            result.push_str(trimmed[2..].trim_start());
+            let rest: String = trimmed.chars().skip(2).collect();
+            result.push_str(rest.trim_start());
             result.push('\n');
             continue;
         }
-        if trimmed.len() > 3 && trimmed[2..3].contains(". ") {
+        let chars: Vec<char> = trimmed.chars().collect();
+        if chars.len() >= 3 && chars[1] == '.' && chars[2] == ' ' && chars[0].is_ascii_digit() {
             result.push_str("  ");
-            result.push_str(&trimmed[3..]);
+            let rest: String = chars[3..].iter().collect();
+            result.push_str(rest.trim_start());
             result.push('\n');
             continue;
         }
