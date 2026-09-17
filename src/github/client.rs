@@ -64,6 +64,7 @@ pub struct HttpGitHubFetcher {
     client: Client,
     token: String,
     endpoint: String,
+    rest_base: String,
 }
 
 impl HttpGitHubFetcher {
@@ -72,6 +73,10 @@ impl HttpGitHubFetcher {
     }
 
     pub fn new_with_endpoint(token: String, endpoint: String) -> Self {
+        let rest_base = endpoint
+            .strip_suffix("/graphql")
+            .unwrap_or(REST_API_BASE)
+            .to_string();
         let client = Client::builder()
             .timeout(HTTP_TIMEOUT)
             .user_agent("githappens")
@@ -81,11 +86,12 @@ impl HttpGitHubFetcher {
             client,
             token,
             endpoint,
+            rest_base,
         }
     }
 
     async fn fetch_mergeable_state(&self, repo: &str, number: u32) -> UpToDateState {
-        let url = format!("{REST_API_BASE}/repos/{repo}/pulls/{number}");
+        let url = format!("{}/repos/{repo}/pulls/{number}", self.rest_base);
         let result = self
             .client
             .get(&url)
@@ -194,19 +200,32 @@ impl HttpGitHubFetcher {
         let resp: GraphQLResponse =
             serde_json::from_str(&text).map_err(|e| FetchError::Parse(e.to_string()))?;
 
+        let data = match resp.data {
+            Some(d) => d,
+            None => {
+                if let Some(errors) = resp.errors {
+                    return Err(FetchError::GraphQLErrors(
+                        errors
+                            .iter()
+                            .map(|e| e.message.clone())
+                            .collect::<Vec<_>>()
+                            .join("; "),
+                    ));
+                }
+                return Err(FetchError::Parse("missing data field".to_string()));
+            }
+        };
+
         if let Some(errors) = resp.errors {
-            return Err(FetchError::GraphQLErrors(
+            tracing::warn!(
+                "GraphQL partial errors: {}",
                 errors
                     .iter()
                     .map(|e| e.message.clone())
                     .collect::<Vec<_>>()
-                    .join("; "),
-            ));
+                    .join("; ")
+            );
         }
-
-        let data = resp
-            .data
-            .ok_or_else(|| FetchError::Parse("missing data field".to_string()))?;
 
         let login = data.viewer.login;
         let prs: Vec<PullRequestNode> = data

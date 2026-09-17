@@ -51,6 +51,8 @@ pub struct PullRequestNode {
     pub number: u32,
     pub title: String,
     pub url: String,
+    #[serde(default)]
+    pub body: String,
     pub is_draft: bool,
     pub mergeable: MergeableState,
     pub head_ref_oid: Option<String>,
@@ -60,6 +62,7 @@ pub struct PullRequestNode {
     pub repository: Option<RepositoryNode>,
     pub commits: CommitConnection,
     pub reviews: ReviewConnection,
+    pub comments: CommentConnection,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -103,7 +106,7 @@ pub struct StatusCheckRollup {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ContextConnection {
-    pub nodes: Vec<CheckContext>,
+    pub nodes: Vec<Option<CheckContext>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -139,11 +142,32 @@ pub enum CheckRunConclusion {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckRun {
     #[serde(default)]
     pub name: String,
     pub status: Option<CheckRunStatus>,
     pub conclusion: Option<CheckRunConclusion>,
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub completed_at: Option<String>,
+    #[serde(default)]
+    pub annotations: Option<AnnotationConnection>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AnnotationConnection {
+    pub nodes: Vec<AnnotationNode>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotationNode {
+    #[serde(default)]
+    pub message: String,
+    #[serde(default)]
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -157,12 +181,15 @@ pub enum StatusState {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StatusContext {
     #[serde(default)]
     pub context: String,
     pub state: StatusState,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -176,11 +203,31 @@ pub struct ReviewNode {
     pub author: Option<ReviewAuthor>,
     pub state: ReviewState,
     pub submitted_at: Option<String>,
+    #[serde(default)]
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentConnection {
+    pub nodes: Vec<CommentNode>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentNode {
+    pub author: Option<ReviewAuthor>,
+    #[serde(default)]
+    pub body: String,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReviewAuthor {
     pub login: Option<String>,
+    #[serde(rename = "__typename")]
+    pub typename: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -215,6 +262,7 @@ mod tests {
                             "number": 42,
                             "title": "Add feature",
                             "url": "https://github.com/owner/repo/pull/42",
+                            "body": "",
                             "isDraft": false,
                             "mergeable": "MERGEABLE",
                             "headRefOid": "abc123",
@@ -245,7 +293,8 @@ mod tests {
                                     "state": "APPROVED",
                                     "submittedAt": "2024-01-01T00:00:00Z"
                                 }]
-                            }
+                            },
+                            "comments": {"nodes": []}
                         }]
                     }
                 }
@@ -272,6 +321,7 @@ mod tests {
                             "number": 1,
                             "title": "Test",
                             "url": "https://github.com/o/r/pull/1",
+                            "body": "",
                             "isDraft": false,
                             "mergeable": "MERGEABLE",
                             "headRefOid": null,
@@ -286,7 +336,8 @@ mod tests {
                                     }
                                 }]
                             },
-                            "reviews": {"nodes": []}
+                            "reviews": {"nodes": []},
+                            "comments": {"nodes": []}
                         }]
                     }
                 }

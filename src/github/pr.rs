@@ -15,6 +15,7 @@ pub struct PullRequestSnapshot {
     pub number: u32,
     pub title: String,
     pub url: String,
+    pub body: String,
     pub is_draft: bool,
     pub mergeable: MergeableState,
     pub repo: String,
@@ -24,20 +25,29 @@ pub struct PullRequestSnapshot {
     pub rollup_state: Option<RollupState>,
     pub checks: Vec<CheckSnapshot>,
     pub reviews: Vec<ReviewSnapshot>,
+    pub comments: Vec<CommentSnapshot>,
     pub up_to_date: UpToDateState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckStatus {
+    Running,
+    Failed,
+    Success,
+    Skipped,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckSnapshot {
     pub name: String,
     pub kind: CheckKind,
-    pub completed: bool,
-    pub failed: bool,
-    pub skipped: bool,
-    pub running: bool,
+    pub status: CheckStatus,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub annotations: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckKind {
     CheckRun,
     StatusContext,
@@ -46,7 +56,18 @@ pub enum CheckKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReviewSnapshot {
     pub author: String,
+    pub author_is_bot: bool,
     pub state: ReviewState,
+    pub body: String,
+    pub submitted_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommentSnapshot {
+    pub author: String,
+    pub author_is_bot: bool,
+    pub body: String,
+    pub created_at: String,
 }
 
 pub fn from_dto(node: &PullRequestNode) -> PullRequestSnapshot {
@@ -68,15 +89,41 @@ pub fn from_dto(node: &PullRequestNode) -> PullRequestSnapshot {
         .nodes
         .first()
         .and_then(|c| c.commit.status_check_rollup.as_ref())
-        .map(|r| r.contexts.nodes.iter().map(check_from_context).collect())
+        .map(|r| {
+            r.contexts
+                .nodes
+                .iter()
+                .filter_map(|c| c.as_ref().map(check_from_context))
+                .collect()
+        })
         .unwrap_or_default();
 
     let reviews = node.reviews.nodes.iter().map(review_from_dto).collect();
+    let comments = node
+        .comments
+        .nodes
+        .iter()
+        .map(|c| CommentSnapshot {
+            author: c
+                .author
+                .as_ref()
+                .and_then(|a| a.login.clone())
+                .unwrap_or_default(),
+            author_is_bot: c
+                .author
+                .as_ref()
+                .map(|a| a.typename.as_deref() == Some("Bot"))
+                .unwrap_or(false),
+            body: c.body.clone(),
+            created_at: c.created_at.clone().unwrap_or_default(),
+        })
+        .collect();
 
     PullRequestSnapshot {
         number: node.number,
         title: node.title.clone(),
         url: node.url.clone(),
+        body: node.body.clone(),
         is_draft: node.is_draft,
         mergeable: node.mergeable.clone(),
         repo,
@@ -86,6 +133,7 @@ pub fn from_dto(node: &PullRequestNode) -> PullRequestSnapshot {
         rollup_state,
         checks,
         reviews,
+        comments,
         up_to_date: UpToDateState::Unknown,
     }
 }
@@ -100,12 +148,12 @@ fn check_from_context(ctx: &CheckContext) -> CheckSnapshot {
                     CheckRunConclusion::Failure
                         | CheckRunConclusion::TimedOut
                         | CheckRunConclusion::Cancelled
+                        | CheckRunConclusion::StartupFailure
+                        | CheckRunConclusion::ClusterFailure
+                        | CheckRunConclusion::ActionRequired
                 )
             );
-            let skipped = matches!(
-                cr.conclusion,
-                Some(CheckRunConclusion::Skipped | CheckRunConclusion::Neutral)
-            );
+            let skipped = matches!(cr.conclusion, Some(CheckRunConclusion::Skipped));
             let running = !completed
                 && matches!(
                     cr.status,
@@ -116,30 +164,63 @@ fn check_from_context(ctx: &CheckContext) -> CheckSnapshot {
                             | CheckRunStatus::Requested
                     )
                 );
+            let status = if running {
+                CheckStatus::Running
+            } else if failed {
+                CheckStatus::Failed
+            } else if skipped {
+                CheckStatus::Skipped
+            } else if completed && cr.conclusion.is_none() {
+                CheckStatus::Running
+            } else if completed {
+                CheckStatus::Success
+            } else {
+                CheckStatus::Running
+            };
             CheckSnapshot {
                 name: cr.name.clone(),
                 kind: CheckKind::CheckRun,
-                completed,
-                failed,
-                skipped,
-                running,
+                status,
+                started_at: cr.started_at.clone(),
+                completed_at: cr.completed_at.clone(),
+                annotations: cr
+                    .annotations
+                    .as_ref()
+                    .map(|a| {
+                        a.nodes
+                            .iter()
+                            .map(|n| {
+                                n.path
+                                    .as_deref()
+                                    .map(|p| format!("{}: {}", p, n.message))
+                                    .unwrap_or_else(|| n.message.clone())
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             }
         }
         CheckContext::StatusContext(sc) => {
-            let completed = matches!(
-                sc.state,
-                StatusState::Success | StatusState::Error | StatusState::Failure
-            );
             let failed = matches!(sc.state, StatusState::Error | StatusState::Failure);
-            let skipped = false;
-            let running = matches!(sc.state, StatusState::Pending);
+            let running = matches!(sc.state, StatusState::Pending | StatusState::Expected);
+            let status = if running {
+                CheckStatus::Running
+            } else if failed {
+                CheckStatus::Failed
+            } else {
+                CheckStatus::Success
+            };
             CheckSnapshot {
                 name: sc.context.clone(),
                 kind: CheckKind::StatusContext,
-                completed,
-                failed,
-                skipped,
-                running,
+                status,
+                started_at: sc.created_at.clone(),
+                completed_at: None,
+                annotations: sc
+                    .description
+                    .as_ref()
+                    .map(|d| vec![d.clone()])
+                    .unwrap_or_default(),
             }
         }
     }
@@ -152,7 +233,14 @@ fn review_from_dto(node: &ReviewNode) -> ReviewSnapshot {
             .as_ref()
             .and_then(|a| a.login.clone())
             .unwrap_or_default(),
+        author_is_bot: node
+            .author
+            .as_ref()
+            .map(|a| a.typename.as_deref() == Some("Bot"))
+            .unwrap_or(false),
         state: node.state.clone(),
+        body: node.body.clone(),
+        submitted_at: node.submitted_at.clone(),
     }
 }
 
@@ -173,6 +261,7 @@ mod tests {
             "number": 42,
             "title": "Add feature",
             "url": "https://github.com/owner/repo/pull/42",
+            "body": "",
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "abc",
@@ -199,7 +288,8 @@ mod tests {
                 "nodes": [
                     {"author": {"login": "alice"}, "state": "APPROVED", "submittedAt": "2024-01-01T00:00:00Z"}
                 ]
-            }
+            },
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
         assert_eq!(snap.number, 42);
@@ -209,10 +299,8 @@ mod tests {
         assert_eq!(snap.mergeable, MergeableState::Mergeable);
         assert_eq!(snap.rollup_state, Some(RollupState::Success));
         assert_eq!(snap.checks.len(), 2);
-        assert!(snap.checks[0].completed);
-        assert!(!snap.checks[0].failed);
-        assert!(snap.checks[1].completed);
-        assert!(!snap.checks[1].failed);
+        assert_eq!(snap.checks[0].status, CheckStatus::Success);
+        assert_eq!(snap.checks[1].status, CheckStatus::Success);
         assert_eq!(snap.reviews.len(), 1);
         assert_eq!(snap.reviews[0].author, "alice");
         assert_eq!(snap.reviews[0].state, ReviewState::Approved);
@@ -224,6 +312,7 @@ mod tests {
             "number": 1,
             "title": "Test",
             "url": "https://github.com/o/r/pull/1",
+            "body": "",
             "isDraft": true,
             "mergeable": "UNKNOWN",
             "headRefOid": null,
@@ -232,7 +321,8 @@ mod tests {
             "createdAt": "2024-01-01T00:00:00Z",
             "repository": {"nameWithOwner": "o/r"},
             "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
-            "reviews": {"nodes": []}
+            "reviews": {"nodes": []},
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
         assert!(snap.is_draft);
@@ -248,6 +338,7 @@ mod tests {
             "number": 3,
             "title": "Broken",
             "url": "https://github.com/o/r/pull/3",
+            "body": "",
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "def",
@@ -262,15 +353,14 @@ mod tests {
                     {"__typename": "CheckRun", "name": "Lint", "status": "IN_PROGRESS", "conclusion": null}
                 ]}
             }}}]},
-            "reviews": {"nodes": []}
+            "reviews": {"nodes": []},
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
         assert_eq!(snap.rollup_state, Some(RollupState::Failure));
         assert_eq!(snap.checks.len(), 2);
-        assert!(snap.checks[0].completed);
-        assert!(snap.checks[0].failed);
-        assert!(!snap.checks[1].completed);
-        assert!(!snap.checks[1].failed);
+        assert_eq!(snap.checks[0].status, CheckStatus::Failed);
+        assert_eq!(snap.checks[1].status, CheckStatus::Running);
     }
 
     #[test]
@@ -279,6 +369,7 @@ mod tests {
             "number": 5,
             "title": "No repo",
             "url": "https://github.com/o/r/pull/5",
+            "body": "",
             "isDraft": false,
             "mergeable": "CONFLICTING",
             "headRefOid": "ghi",
@@ -286,7 +377,8 @@ mod tests {
             "deletions": 0,
             "createdAt": "2024-01-01T00:00:00Z",
             "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]},
-            "reviews": {"nodes": []}
+            "reviews": {"nodes": []},
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
         assert_eq!(snap.repo, "");
@@ -299,6 +391,7 @@ mod tests {
             "number": 7,
             "title": "Bot review",
             "url": "https://github.com/o/r/pull/7",
+            "body": "",
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "jkl",
@@ -310,7 +403,8 @@ mod tests {
             "reviews": {"nodes": [
                 {"author": null, "state": "COMMENTED", "submittedAt": null},
                 {"author": {"login": null}, "state": "APPROVED", "submittedAt": "2024-01-01T00:00:00Z"}
-            ]}
+            ]},
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
         assert_eq!(snap.reviews.len(), 2);
@@ -324,6 +418,7 @@ mod tests {
             "number": 8,
             "title": "Status fail",
             "url": "https://github.com/o/r/pull/8",
+            "body": "",
             "isDraft": false,
             "mergeable": "MERGEABLE",
             "headRefOid": "mno",
@@ -338,12 +433,11 @@ mod tests {
                     {"__typename": "StatusContext", "name": "ci/travis", "state": "PENDING"}
                 ]}
             }}}]},
-            "reviews": {"nodes": []}
+            "reviews": {"nodes": []},
+            "comments": {"nodes": []}
         }));
         let snap = from_dto(&node);
-        assert!(snap.checks[0].completed);
-        assert!(snap.checks[0].failed);
-        assert!(!snap.checks[1].completed);
-        assert!(!snap.checks[1].failed);
+        assert_eq!(snap.checks[0].status, CheckStatus::Failed);
+        assert_eq!(snap.checks[1].status, CheckStatus::Running);
     }
 }
