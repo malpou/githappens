@@ -18,14 +18,10 @@ pub fn render(frame: &mut ratatui::Frame, app: &mut App) {
         return;
     }
 
-    if app.describe_visible {
-        crate::ui::describe_overlay::render(frame, area, app);
-        return;
-    }
-
-    match &app.state {
+    let rendered_dashboard = match &app.state {
         crate::app::AppState::Error(msg) => {
             crate::ui::error_screen::render(frame, area, msg);
+            false
         }
         crate::app::AppState::RateLimited { retry_after_secs } => {
             let countdown = app
@@ -33,16 +29,23 @@ pub fn render(frame: &mut ratatui::Frame, app: &mut App) {
                 .unwrap_or_else(|| format!("{}s", retry_after_secs));
             let msg = format!("Rate limited by GitHub. Retry in {countdown}");
             crate::ui::error_screen::render(frame, area, &msg);
+            false
         }
         crate::app::AppState::Loading | crate::app::AppState::Refreshing if app.prs.is_empty() => {
             let spinner = app.spinner();
             let msg = format!(" {spinner}  Fetching your PRs... ");
             let paragraph = Paragraph::new(msg).centered();
             frame.render_widget(paragraph, area);
+            false
         }
         _ => {
             render_dashboard(frame, area, app);
+            true
         }
+    };
+
+    if rendered_dashboard && app.describe_visible {
+        crate::ui::describe_overlay::render(frame, area, app);
     }
 }
 
@@ -474,5 +477,45 @@ mod tests {
     fn get_approval_delegates() {
         let pr = make_app_with_prs().prs[0].clone();
         assert_eq!(get_approval(&pr), ApprovalState::Approved);
+    }
+
+    #[test]
+    fn describe_overlay_renders_over_dashboard() {
+        let mut app = make_app_with_prs();
+        app.selected = 0;
+        app.describe_visible = true;
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Description"));
+        assert!(text.contains("Checks"));
+        assert!(text.contains("Activity"));
+        assert!(text.contains("#42"));
+    }
+
+    #[test]
+    fn describe_overlay_renders_on_small_terminal() {
+        let mut app = make_app_with_prs();
+        app.selected = 0;
+        app.describe_visible = true;
+        let backend = TestBackend::new(80, 15);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("#42"));
+    }
+
+    #[test]
+    fn describe_overlay_not_rendered_in_error_state() {
+        let mut app = make_app_with_prs();
+        app.describe_visible = true;
+        app.state = crate::app::AppState::Error("Something broke".to_string());
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| render(f, &mut app)).unwrap();
+        let text = extract_text(&terminal);
+        assert!(text.contains("Something broke"));
+        assert!(!text.contains("Description"));
     }
 }
