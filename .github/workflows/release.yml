@@ -46,23 +46,19 @@ jobs:
           has_tag = result.returncode == 0
           latest_tag = result.stdout.strip() if has_tag else None
 
-          # Determine commit range
-          if has_tag:
-              rev_range = f"{latest_tag}..HEAD"
-              # Get commits since last tag
-              log = subprocess.run(
-                  ["git", "log", rev_range, "--pretty=format:%s"],
-                  capture_output=True, text=True
-              ).stdout
-              commits = log.strip().splitlines() if log.strip() else []
-          else:
-              # No tags yet — first release
+          # Get the merge commit subject (PR title)
+          subject = subprocess.run(
+              ["git", "log", "-1", "--pretty=format:%s"],
+              capture_output=True, text=True
+          ).stdout.strip()
+
+          if not has_tag:
               set_output("version", "0.1.0")
               set_output("tag", "v0.1.0")
               set_output("should_release", "true")
               sys.exit(0)
 
-          if not commits:
+          if not subject:
               set_output("should_release", "false")
               sys.exit(0)
 
@@ -71,41 +67,21 @@ jobs:
           parts = current.split(".")
           major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
 
-          # Analyze commits for version bump
-          bump_major = False
-          bump_minor = False
-          bump_patch = False
-
-          for subject in commits:
-              # Check for breaking change marker: "scope!" or "BREAKING CHANGE"
+          # Determine bump from PR title (conventional commit format)
+          m = re.match(r"^(\w+)(\(.+\))?!?:", subject)
+          if m:
+              ctype = m.group(1)
               if "!" in subject.split(":")[0] or "BREAKING CHANGE" in subject:
-                  bump_major = True
-              # Conventional commit types
-              m = re.match(r"^(\w+)(\(.+\))?!?:", subject)
-              if m:
-                  ctype = m.group(1)
-                  if "!" in subject.split(":")[0]:
-                      bump_major = True
-                  elif ctype == "feat":
-                      bump_minor = True
-                  elif ctype in ("fix", "perf", "refactor", "build", "chore", "docs", "style", "test"):
-                      bump_patch = True
+                  major += 1
+                  minor = 0
+                  patch = 0
+              elif ctype == "feat":
+                  minor += 1
+                  patch = 0
               else:
-                  # Non-conventional commit → patch bump
-                  bump_patch = True
-
-          if bump_major:
-              major += 1
-              minor = 0
-              patch = 0
-          elif bump_minor:
-              minor += 1
-              patch = 0
-          elif bump_patch:
-              patch += 1
+                  patch += 1
           else:
-              set_output("should_release", "false")
-              sys.exit(0)
+              patch += 1
 
           version = f"{major}.{minor}.{patch}"
           tag = f"v{version}"
@@ -190,46 +166,34 @@ jobs:
           python3 - <<'PY'
           import subprocess, re
 
-          result = subprocess.run(
-              ["git", "describe", "--tags", "--abbrev=0"],
+          subject = subprocess.run(
+              ["git", "log", "-1", "--pretty=format:%s"],
               capture_output=True, text=True
-          )
-          if result.returncode == 0:
-              rev_range = f"{result.stdout.strip()}..HEAD"
-          else:
-              rev_range = "HEAD"
+          ).stdout.strip()
 
-          log = subprocess.run(
-              ["git", "log", rev_range, "--pretty=format:%s"],
-              capture_output=True, text=True
-          ).stdout
-
-          lines = ["## Changes\n"]
-          for subject in log.strip().splitlines():
-              m = re.match(r"^(\w+)(\(.+\))?:\s*(.+)", subject)
-              if m:
-                  ctype = m.group(1)
-                  desc = m.group(3)
-                  if ctype == "feat":
-                      lines.append(f"- ✨ {desc}")
-                  elif ctype == "fix":
-                      lines.append(f"- 🐛 {desc}")
-                  elif ctype == "perf":
-                      lines.append(f"- ⚡ {desc}")
-                  elif ctype == "docs":
-                      lines.append(f"- 📝 {desc}")
-                  elif ctype == "chore":
-                      lines.append(f"- 🔧 {desc}")
-                  elif ctype == "refactor":
-                      lines.append(f"- ♻️ {desc}")
-                  else:
-                      lines.append(f"- {subject}")
+          m = re.match(r"^(\w+)(\(.+\))?:\s*(.+)", subject)
+          if m:
+              ctype = m.group(1)
+              desc = m.group(3)
+              if ctype == "feat":
+                  line = f"- ✨ {desc}"
+              elif ctype == "fix":
+                  line = f"- 🐛 {desc}"
+              elif ctype == "perf":
+                  line = f"- ⚡ {desc}"
+              elif ctype == "docs":
+                  line = f"- 📝 {desc}"
+              elif ctype == "chore":
+                  line = f"- 🔧 {desc}"
+              elif ctype == "refactor":
+                  line = f"- ♻️ {desc}"
               else:
-                  lines.append(f"- {subject}")
+                  line = f"- {subject}"
+          else:
+              line = f"- {subject}"
 
-          # Write to file to preserve newlines
           with open("release_notes.md", "w") as f:
-              f.write("\n".join(lines))
+              f.write(f"## Changes\n\n{line}\n")
           PY
 
       - name: Create tag
