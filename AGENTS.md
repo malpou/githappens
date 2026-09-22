@@ -137,6 +137,7 @@ string.
 | `--token <T>` | `GIT_TOKEN` | — | GitHub PAT (required) |
 | `--refresh <secs>` | — | `300` | Auto-refresh interval (min 30) |
 | `--owner <login>` | — | token owner | Override "me" viewer |
+| `--org <org>` | — | — | Filter PRs to a specific GitHub organization |
 | `--max-prs <N>` | — | `500` | Max PRs to fetch (hard cap 1000) |
 | `--no-color` | `NO_COLOR` | `false` | Disable colored output |
 | `--log-level <L>` | `RUST_LOG` | `info` | Log level (trace/debug/info/warn/error) |
