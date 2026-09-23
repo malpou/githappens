@@ -51,6 +51,7 @@ pub struct App {
     pub describe_subview_scroll: usize,
     pub last_refresh: Option<Instant>,
     pub truncated: bool,
+    pub org: Option<String>,
     refresh_interval: Duration,
     spinner_idx: usize,
 }
@@ -58,7 +59,7 @@ pub struct App {
 const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 impl App {
-    pub fn new(_config: &Config) -> Self {
+    pub fn new(config: &Config) -> Self {
         Self {
             state: AppState::Loading,
             prs: Vec::new(),
@@ -72,6 +73,7 @@ impl App {
             describe_subview_scroll: 0,
             last_refresh: None,
             truncated: false,
+            org: config.org.clone(),
             refresh_interval: Duration::from_secs(300),
             spinner_idx: 0,
         }
@@ -350,6 +352,11 @@ impl App {
 
     fn apply_outcome(&mut self, outcome: FetchOutcome) {
         self.prs = outcome.prs;
+        if let Some(org) = &self.org {
+            let prefix = format!("{}/", org.to_lowercase());
+            self.prs
+                .retain(|p| p.repo.to_lowercase().starts_with(&prefix));
+        }
         self.viewer_login = outcome.login;
         self.truncated = outcome.truncated;
         self.last_refresh = Some(Instant::now());
@@ -418,6 +425,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -1146,5 +1154,56 @@ mod tests {
         app.state = AppState::Ready;
         app.last_refresh = Some(Instant::now());
         assert!(!app.should_auto_refresh());
+    }
+
+    fn make_pr_with_repo(number: u32, repo: &str) -> PullRequestSnapshot {
+        PullRequestSnapshot {
+            number,
+            title: format!("PR {number}"),
+            url: format!("https://github.com/{repo}/pull/{number}"),
+            body: String::new(),
+            is_draft: false,
+            mergeable: crate::github::models::MergeableState::Mergeable,
+            repo: repo.to_string(),
+            rollup_state: None,
+            checks: vec![],
+            reviews: vec![],
+            up_to_date: crate::github::pr::UpToDateState::Unknown,
+            additions: 0,
+            deletions: 0,
+            created_at: String::new(),
+            comments: vec![],
+        }
+    }
+
+    #[test]
+    fn org_filter_keeps_only_matching_prs() {
+        let mut cfg = make_config();
+        cfg.org = Some("acme".to_string());
+        let mut app = App::new(&cfg);
+        app.apply_fetch_result(Ok(FetchOutcome {
+            login: "ska".to_string(),
+            prs: vec![
+                make_pr_with_repo(1, "acme/api"),
+                make_pr_with_repo(2, "personal/dotfiles"),
+            ],
+            truncated: false,
+        }));
+        assert_eq!(app.prs.len(), 1);
+        assert_eq!(app.prs[0].repo, "acme/api");
+    }
+
+    #[test]
+    fn org_filter_case_insensitive() {
+        let mut cfg = make_config();
+        cfg.org = Some("AcMe".to_string());
+        let mut app = App::new(&cfg);
+        app.apply_fetch_result(Ok(FetchOutcome {
+            login: "ska".to_string(),
+            prs: vec![make_pr_with_repo(1, "acme/api")],
+            truncated: false,
+        }));
+        assert_eq!(app.prs.len(), 1);
+        assert_eq!(app.prs[0].repo, "acme/api");
     }
 }

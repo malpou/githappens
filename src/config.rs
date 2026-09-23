@@ -28,6 +28,10 @@ pub struct Config {
     #[arg(long)]
     pub owner: Option<String>,
 
+    /// Filter PRs to a specific GitHub organization (e.g. "acme")
+    #[arg(long)]
+    pub org: Option<String>,
+
     #[arg(long, default_value_t = 500)]
     pub max_prs: usize,
 
@@ -82,6 +86,7 @@ mod tests {
             token: None,
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -97,6 +102,7 @@ mod tests {
             token: Some(String::new()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -111,6 +117,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 10,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -125,6 +132,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 0,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -139,6 +147,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 30,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -152,6 +161,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 0,
             no_color: false,
             log_level: "info".to_string(),
@@ -166,6 +176,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 1001,
             no_color: false,
             log_level: "info".to_string(),
@@ -181,11 +192,18 @@ mod tests {
     }
 
     #[test]
+    fn org_flag_provided() {
+        let cfg = Config::parse_from(["githappens", "--token", "ghp_test", "--org", "acme"]);
+        assert_eq!(cfg.org.as_deref(), Some("acme"));
+    }
+
+    #[test]
     fn defaults_applied() {
         let cfg = Config::parse_from(["githappens", "--token", "ghp_test"]);
         assert_eq!(cfg.refresh, 300);
         assert_eq!(cfg.max_prs, 500);
         assert!(cfg.owner.is_none());
+        assert!(cfg.org.is_none());
     }
 
     #[test]
@@ -194,6 +212,7 @@ mod tests {
             token: Some("ghp_super_secret".to_string()),
             refresh: 10,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),

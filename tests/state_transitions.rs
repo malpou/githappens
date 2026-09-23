@@ -48,6 +48,7 @@ fn make_config() -> Config {
         token: Some("ghp_test".to_string()),
         refresh: 300,
         owner: None,
+        org: None,
         max_prs: 500,
         no_color: false,
         log_level: "info".to_string(),

@@ -33,18 +33,19 @@ async fn main() -> Result<()> {
     let refresh_interval = cfg.refresh;
     let max_prs = cfg.max_prs;
     let owner = cfg.owner.clone();
+    let org = cfg.org.clone();
 
-    run_tui(fetcher, refresh_interval, max_prs, owner).await
+    run_tui(fetcher, refresh_interval, max_prs, owner, org).await
 }
-
 async fn run_tui(
     fetcher: Arc<HttpGitHubFetcher>,
     refresh_interval: u64,
     max_prs: usize,
     owner: Option<String>,
+    org: Option<String>,
 ) -> Result<()> {
     setup_terminal()?;
-    let result = run_app(fetcher, refresh_interval, max_prs, owner).await;
+    let result = run_app(fetcher, refresh_interval, max_prs, owner, org).await;
     restore_terminal();
     result
 }
@@ -65,11 +66,13 @@ async fn run_app(
     refresh_interval: u64,
     max_prs: usize,
     owner: Option<String>,
+    org: Option<String>,
 ) -> Result<()> {
     let cfg = config::Config {
         token: Some(String::new()),
         refresh: refresh_interval,
         owner: owner.clone(),
+        org: org.clone(),
         max_prs,
         no_color: false,
         log_level: "info".to_string(),

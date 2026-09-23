@@ -7,6 +7,7 @@ A personal, terminal-native GitHub dashboard built in Rust with [`ratatui`](http
 ## Features
 
 - Lists all your open PRs across all repos in a single dashboard
+- Filter PRs by organization with `--org` (e.g. `--org acme` shows only PRs in that org's repos)
 - Color-coded merge-readiness: green (ready), yellow (waiting), red (failed)
 - Diff column showing additions (green) and deletions (red) per PR
 - Workflow pass/total counts per PR (e.g. `5/7`)
@@ -56,6 +57,7 @@ githappens
 githappens --token ghp_your_token_here
 
 # With options
+githappens --token ghp_xxx --org my-org
 githappens --token ghp_xxx --refresh 60 --max-prs 100
 ```
 
@@ -66,6 +68,7 @@ githappens --token ghp_xxx --refresh 60 --max-prs 100
 | `--token <T>` | `GIT_TOKEN` | — | GitHub PAT (required) |
 | `--refresh <secs>` | — | `300` | Auto-refresh interval (min 30) |
 | `--owner <login>` | — | token owner | Override "me" viewer |
+| `--org <org>` | — | — | Filter PRs to a specific GitHub organization |
 | `--max-prs <N>` | — | `500` | Max PRs to fetch (hard cap 1000) |
 | `--no-color` | `NO_COLOR` | `false` | Disable colored output |
 | `--log-level <L>` | `RUST_LOG` | `info` | Log level (trace/debug/info/warn/error) |

@@ -63,19 +63,29 @@ fn render_dashboard(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
 }
 
 fn render_header(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
-    let title = if app.is_refreshing() {
-        let spinner = app.spinner();
+    let spinner = if app.is_refreshing() {
+        Some(app.spinner())
+    } else {
+        None
+    };
+    let scope = match &app.org {
+        Some(org) => format!(" in {}", org),
+        None => String::new(),
+    };
+    let title = if let Some(spinner) = spinner {
         format!(
-            " {} {} — {}'s open PRs · refreshing... ",
+            " {} {} — {}'s open PRs{} · refreshing... ",
             spinner,
             theme::HEADER_LABEL.trim(),
             app.viewer_login,
+            scope,
         )
     } else {
         format!(
-            " {} — {}'s open PRs · refreshed {}s ago ",
+            " {} — {}'s open PRs{} · refreshed {}s ago ",
             theme::HEADER_LABEL.trim(),
             app.viewer_login,
+            scope,
             app.last_refresh_secs()
         )
     };
@@ -271,6 +281,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -362,6 +373,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -382,6 +394,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -401,6 +414,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -421,6 +435,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
@@ -443,6 +458,7 @@ mod tests {
             token: Some("ghp_test".to_string()),
             refresh: 300,
             owner: None,
+            org: None,
             max_prs: 500,
             no_color: false,
             log_level: "info".to_string(),
