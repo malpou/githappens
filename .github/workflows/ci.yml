@@ -103,7 +103,7 @@ jobs:
           print(f"Line coverage: {overall_pct}%")
           PY
       - name: Find coverage comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/find-comment@v3
         id: fc
         with:
@@ -111,7 +111,7 @@ jobs:
           comment-author: github-actions[bot]
           body-includes: Coverage Report
       - name: Post or update coverage comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -208,7 +208,7 @@ jobs:
               f.write(f"report<<EOF\n{body}\nEOF\n")
           PY
       - name: Find audit comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/find-comment@v3
         id: fc
         with:
@@ -216,7 +216,7 @@ jobs:
           comment-author: github-actions[bot]
           body-includes: Security Audit Report
       - name: Post or update audit comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
